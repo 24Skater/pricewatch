@@ -3,7 +3,6 @@ from email.mime.text import MIMEText
 from email.utils import formataddr
 from twilio.rest import Client
 
-# Fallback to env if a profile doesn't provide a value
 ENV_SMTP = {
     "email_from": os.getenv("FROM_EMAIL", "alerts@example.com"),
     "smtp_host": os.getenv("SMTP_HOST", ""),
@@ -24,7 +23,7 @@ def _smtp_config(profile):
             "smtp_host": profile.smtp_host or ENV_SMTP["smtp_host"],
             "smtp_port": profile.smtp_port or ENV_SMTP["smtp_port"] or 587,
             "smtp_user": profile.smtp_user or ENV_SMTP["smtp_user"],
-            "smtp_pass": profile.smtp_pass or ENV_SMTP["smtp_pass"],
+            "smtp_pass": profile.smtp_pass or ENV_SMTP["smtp_pass"]
         }
     return ENV_SMTP
 
@@ -33,7 +32,7 @@ def _twilio_config(profile):
         return {
             "twilio_account_sid": profile.twilio_account_sid or ENV_TWILIO["twilio_account_sid"],
             "twilio_auth_token": profile.twilio_auth_token or ENV_TWILIO["twilio_auth_token"],
-            "twilio_from_number": profile.twilio_from_number or ENV_TWILIO["twilio_from_number"],
+            "twilio_from_number": profile.twilio_from_number or ENV_TWILIO["twilio_from_number"]
         }
     return ENV_TWILIO
 
@@ -49,7 +48,8 @@ def send_email(to_email: str, subject: str, body: str, profile=None):
     with smtplib.SMTP(cfg["smtp_host"], int(cfg["smtp_port"])) as server:
         server.starttls()
         if cfg["smtp_user"]:
-            server.login(cfg["smtp_user"], cfg["smtp_pass"])
+            server.login(cfg["smtp_user"], cfg["smtp_pass"]
+            )
         server.send_message(msg)
 
 def send_sms(to_number: str, body: str, profile=None):
@@ -58,8 +58,4 @@ def send_sms(to_number: str, body: str, profile=None):
         print("[WARN] Twilio not configured; skipping SMS.")
         return
     client = Client(cfg["twilio_account_sid"], cfg["twilio_auth_token"])
-    client.messages.create(
-        to=to_number,
-        from_=cfg["twilio_from_number"],
-        body=body,
-    )
+    client.messages.create(to=to_number, from_=cfg["twilio_from_number"], body=body)

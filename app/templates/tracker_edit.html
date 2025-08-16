@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>Edit Tracker</h1>
+  <form method="post" action="/tracker/{{ tracker.id }}/edit" class="grid">
+    <label>
+      Name
+      <input type="text" name="name" value="{{ tracker.name or '' }}" placeholder="Optional">
+    </label>
+    <label>
+      Product URL
+      <input type="url" name="url" value="{{ tracker.url }}" required>
+    </label>
+    <label>
+      Alert method
+      <select name="alert_method" required>
+        <option value="email" {{ 'selected' if tracker.alert_method=='email' else '' }}>Email</option>
+        <option value="sms" {{ 'selected' if tracker.alert_method=='sms' else '' }}>SMS</option>
+      </select>
+    </label>
+    <label>
+      Contact (email or phone)
+      <input type="text" name="contact" value="{{ tracker.contact }}" required>
+    </label>
+    <label>
+      CSS selector (optional)
+      <input type="text" name="selector" value="{{ tracker.selector or '' }}" placeholder=".product-price--final dollars">
+    </label>
+    <label>
+      Notification Profile
+      <select name="profile_id">
+        <option value="0">default env</option>
+        {% for p in profiles %}
+          <option value="{{ p.id }}" {{ 'selected' if tracker.profile and tracker.profile.id==p.id else '' }}>{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label style="display:flex; align-items:center; gap:8px;">
+      <input type="checkbox" name="is_active" {{ 'checked' if tracker.is_active else '' }}>
+      Active
+    </label>
+    <div class="actions">
+      <button class="btn" type="submit" name="poll_now" value="0">Save</button>
+      <button class="btn" type="submit" name="poll_now" value="1">Save & Poll</button>
+      <a class="btn" href="/tracker/{{ tracker.id }}">Cancel</a>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <form method="post" action="/tracker/{{ tracker.id }}/delete" onsubmit="return confirm('Delete this tracker? This cannot be undone.')">
+    <button class="btn danger" type="submit">Delete tracker</button>
+  </form>
+</section>
+{% endblock %}

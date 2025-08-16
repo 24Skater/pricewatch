@@ -1,20 +1,28 @@
-# Pricewatch (Profiles) — per-user SMTP/SMS
+# Pricewatch — per-user SMTP/SMS + editable trackers
 
-This fork adds **Notification Profiles** so each person can save their own SMTP (email) and Twilio (SMS) credentials in an **Admin** section, then select a profile when creating a tracker.
-
-> ⚠️ Dev note: This stores secrets in **SQLite** for demo purposes. For production, use a secrets manager and encrypted storage.
+This app tracks product prices, sends alerts, and supports **per-user Notification Profiles** for SMTP/Twilio. 
+It includes a **smart auto-detect** scraper (no selector needed), optional **JS fallback**, and full **edit/delete** for trackers.
 
 ## Quickstart
 ```bash
-python -m venv .venv && . .venv/Scripts/activate  # or source .venv/bin/activate
+python -m venv .venv && source .venv/bin/activate  # Windows: .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 cp .env.example .env
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 # open http://localhost:8000
 ```
-- Create profiles at **/admin/profiles**
-- Add trackers on the home page and choose a profile
-- Scheduler runs every `SCHEDULE_MINUTES`
 
-## Important
-- If you used a previous version, **delete `pricewatch.db`** to allow the new tables/columns to be created (or add proper migrations with Alembic).
+### Optional JS fallback (for heavy JS pages)
+```bash
+pip install playwright
+python -m playwright install chromium
+# then set USE_JS_FALLBACK=1 in .env and restart
+```
+
+### Admin
+- Create profiles at **/admin/profiles**
+- Add trackers at **/** and choose a profile (or use default env)
+- Edit trackers at **/tracker/{id}/edit**
+- Use **Poll now** or **Save & Poll** to refresh immediately
+
+> Dev note: credentials are stored in SQLite for demo simplicity. Use a secrets manager + encryption for production.

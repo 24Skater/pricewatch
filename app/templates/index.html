@@ -7,12 +7,10 @@
       Product URL
       <input type="url" name="url" placeholder="https://example.com/product" required />
     </label>
-
     <label>
       Name (optional)
       <input type="text" name="name" placeholder="Behringer X32" />
     </label>
-
     <label>
       Alert method
       <select name="alert_method" required>
@@ -20,17 +18,14 @@
         <option value="sms">SMS</option>
       </select>
     </label>
-
     <label>
       Contact (email or phone)
       <input type="text" name="contact" placeholder="you@example.com or +15551234567" required />
     </label>
-
     <label>
       CSS selector (optional)
-      <input type="text" name="selector" placeholder="#price, .price, [data-test='price']" />
+      <input type="text" name="selector" placeholder="#price, .price, [itemprop='price']" />
     </label>
-
     <label>
       Notification Profile (optional)
       <select name="profile_id">
@@ -40,7 +35,6 @@
         {% endfor %}
       </select>
     </label>
-
     <div class="actions">
       <button type="submit">Create tracker</button>
     </div>
@@ -63,7 +57,13 @@
           <td class="truncate"><a href="{{ t.url }}" target="_blank" rel="noopener">{{ t.url }}</a></td>
           <td>{{ '$' ~ ('%.2f' % t.last_price) if t.last_price is not none else '—' }}</td>
           <td>{{ t.profile.name if t.profile else 'default' }}</td>
-          <td><a class="btn" href="/tracker/{{ t.id }}">Open</a></td>
+          <td style="display:flex; gap:8px; flex-wrap:wrap;">
+            <a class="btn" href="/tracker/{{ t.id }}">Open</a>
+            <a class="btn" href="/tracker/{{ t.id }}/edit">Edit</a>
+            <form method="post" action="/tracker/{{ t.id }}/delete" onsubmit="return confirm('Delete this tracker?')">
+              <button class="btn danger" type="submit">Delete</button>
+            </form>
+          </td>
         </tr>
       {% endfor %}
       </tbody>

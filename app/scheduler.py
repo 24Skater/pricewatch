@@ -19,7 +19,6 @@ def poll_all_trackers(db: Session):
             print(f"[WARN] No price found for {t.url}")
             continue
         delta = None if t.last_price is None else round(price - t.last_price, 2)
-
         if t.last_price is None or abs(price - t.last_price) > 1e-6:
             ph = PriceHistory(tracker_id=t.id, price=price, delta=delta)
             db.add(ph)
@@ -28,14 +27,14 @@ def poll_all_trackers(db: Session):
                 t.name = title[:200]
             db.add(t)
             db.commit()
-
             if delta is not None and abs(delta) > 1e-6:
                 sign = "decreased" if delta < 0 else "increased"
                 subject = f"Price {sign}: {t.name or t.url}"
-                body = f"""The price has {sign} by ${abs(delta):.2f}
-Current price: ${price:.2f}
-URL: {t.url}
-"""
+                body = (
+                    f"The price has {sign} by ${abs(delta):.2f}\n"
+                    f"Current price: ${price:.2f}\n"
+                    f"URL: {t.url}\n"
+                )
                 if t.alert_method == "email":
                     send_email(t.contact, subject, body, profile=t.profile)
                 else:

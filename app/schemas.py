@@ -1,4 +1,3 @@
-# app/schemas.py
 from typing import Optional, Literal
 from pydantic import BaseModel, HttpUrl, EmailStr, model_validator, TypeAdapter
 
@@ -6,21 +5,18 @@ class TrackerCreate(BaseModel):
     url: HttpUrl
     selector: Optional[str] = None
     alert_method: Literal["email", "sms"]
-    contact: str  # email or phone
+    contact: str
     name: Optional[str] = None
     profile_id: Optional[int] = None
 
-    # Validate "contact" AFTER all fields are available (Pydantic v2 way)
     @model_validator(mode="after")
     def validate_contact_matches_method(self):
         if self.alert_method == "email":
-            # Ensure it's a valid email
             TypeAdapter(EmailStr).validate_python(self.contact)
         elif self.alert_method == "sms":
-            # Very basic phone check: at least 10 digits
             digits = [ch for ch in self.contact if ch.isdigit()]
             if len(digits) < 10:
-                raise ValueError("Phone number seems invalid for SMS (need at least 10 digits).")
+                raise ValueError("Phone number seems invalid for SMS (need at least 10 digits)." )
         return self
 
 class TrackerOut(BaseModel):
