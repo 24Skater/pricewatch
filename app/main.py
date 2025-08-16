@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
+from urllib.parse import quote_plus
 from sqlalchemy.orm import Session
 
 from .database import Base, engine, get_db, SessionLocal
@@ -98,16 +99,24 @@ def tracker_refresh(tracker_id: int, db: Session = Depends(get_db)):
     t = db.query(Tracker).filter(Tracker.id == tracker_id).first()
     if not t:
         raise HTTPException(status_code=404, detail="Tracker not found")
-    price, currency, _ = get_price(t.url, t.selector)
+    try:
+        price, currency, _ = get_price(t.url, t.selector)
+    except Exception as e:
+        msg = f"Fetch failed: {e.__class__.__name__}: {e}"
+        return RedirectResponse(url=f"/tracker/{tracker_id}?error={quote_plus(msg)}", status_code=status.HTTP_303_SEE_OTHER)
+
     if price is None:
-        raise HTTPException(status_code=400, detail="Could not parse a price. Try adding a CSS selector.")
+        return RedirectResponse(url=f"/tracker/{tracker_id}?error={quote_plus('Could not parse a price from the page. Try adding a CSS selector or enable USE_JS_FALLBACK=1')}", status_code=status.HTTP_303_SEE_OTHER)
+
     delta = None if t.last_price is None else round(price - t.last_price, 2)
     if t.last_price is None or abs(price - t.last_price) > 1e-6:
         db.add(PriceHistory(tracker_id=t.id, price=price, delta=delta))
         t.last_price = price
         t.currency = t.currency or (currency or "USD")
         db.add(t); db.commit()
-    return RedirectResponse(url=f"/tracker/{t.id}", status_code=status.HTTP_303_SEE_OTHER)
+
+    return RedirectResponse(url=f"/tracker/{tracker_id}?ok=1", status_code=status.HTTP_303_SEE_OTHER)
+
 
 @app.post("/tracker/{tracker_id}/selector", response_class=HTMLResponse)
 def tracker_set_selector(tracker_id: int, selector: str = Form(""), db: Session = Depends(get_db)):

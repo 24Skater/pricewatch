@@ -19,3 +19,7 @@ th, td{ padding:10px; text-align:left; border-bottom:1px solid #1b2444; }
 .up{ color:var(--up); font-weight:700; }
 .down{ color:var(--down); font-weight:700; }
 footer{ opacity:.7; text-align:center; padding:24px; font-size:12px; }
+
+.alert{padding:10px 12px;border-radius:10px;margin:4px 0;background:#0f1627;border:1px solid #223055}
+.alert.success{border-color:#2e7d32;color:#b9f6ca}
+.alert.danger{border-color:#8e1b1f;color:#ffd1d1}
