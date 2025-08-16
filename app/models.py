@@ -3,6 +3,25 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 from .database import Base
 
+class NotificationProfile(Base):
+    __tablename__ = "notification_profiles"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)  # human readable label (e.g., "Emerson - Gmail")
+    # Email
+    email_from = Column(String, nullable=True)
+    smtp_host = Column(String, nullable=True)
+    smtp_port = Column(Integer, nullable=True)
+    smtp_user = Column(String, nullable=True)
+    smtp_pass = Column(String, nullable=True)
+    # SMS (Twilio)
+    twilio_account_sid = Column(String, nullable=True)
+    twilio_auth_token = Column(String, nullable=True)
+    twilio_from_number = Column(String, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    trackers = relationship("Tracker", back_populates="profile")
+
 class Tracker(Base):
     __tablename__ = "trackers"
     id = Column(Integer, primary_key=True)
@@ -16,7 +35,8 @@ class Tracker(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     last_price = Column(Float, nullable=True)
 
-    history = relationship("PriceHistory", back_populates="tracker", cascade="all, delete-orphan")
+    profile_id = Column(Integer, ForeignKey("notification_profiles.id"), nullable=True)
+    profile = relationship("NotificationProfile", back_populates="trackers")
 
 class PriceHistory(Base):
     __tablename__ = "price_history"
@@ -25,5 +45,3 @@ class PriceHistory(Base):
     checked_at = Column(DateTime, default=datetime.utcnow)
     price = Column(Float, nullable=False)
     delta = Column(Float, nullable=True)
-
-    tracker = relationship("Tracker", back_populates="history")

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h1>Notification Profiles</h1>
+    <a class="btn" href="/admin/profiles/new">New Profile</a>
+  </div>
+  {% if not profiles %}
+    <p>No profiles yet — add one.</p>
+  {% else %}
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Email From</th><th>SMTP Host</th><th>Twilio From</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      {% for p in profiles %}
+        <tr>
+          <td>{{ p.name }}</td>
+          <td>{{ p.email_from or '—' }}</td>
+          <td>{{ p.smtp_host or '—' }}</td>
+          <td>{{ p.twilio_from_number or '—' }}</td>
+          <td style="display:flex; gap:8px;">
+            <a class="btn" href="/admin/profiles/{{ p.id }}/edit">Edit</a>
+            <form method="post" action="/admin/profiles/{{ p.id }}/delete" onsubmit="return confirm('Delete this profile?')">
+              <button class="btn danger" type="submit">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+
+<section class="card">
+  <p><strong>Heads up:</strong> Credentials are stored in SQLite for demo convenience. In production, use a secrets store and encryption.</p>
+</section>
+{% endblock %}

@@ -28,7 +28,6 @@ def poll_all_trackers(db: Session):
                 t.name = title[:200]
             db.add(t)
             db.commit()
-            db.refresh(t)
 
             if delta is not None and abs(delta) > 1e-6:
                 sign = "decreased" if delta < 0 else "increased"
@@ -38,9 +37,9 @@ Current price: ${price:.2f}
 URL: {t.url}
 """
                 if t.alert_method == "email":
-                    send_email(t.contact, subject, body)
+                    send_email(t.contact, subject, body, profile=t.profile)
                 else:
-                    send_sms(t.contact, subject + "\n" + body)
+                    send_sms(t.contact, subject + "\n" + body, profile=t.profile)
 
 def start_scheduler(db_factory):
     scheduler = BackgroundScheduler(daemon=True)

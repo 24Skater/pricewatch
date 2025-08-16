@@ -28,7 +28,7 @@ def parse_price_from_jsonld(soup: BeautifulSoup) -> Optional[Tuple[float, str]]:
         items = data if isinstance(data, list) else [data]
         for item in items:
             offers = item.get("offers")
-            if not offers: 
+            if not offers:
                 continue
             if isinstance(offers, list):
                 offers = offers[0]

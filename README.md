@@ -1,18 +1,20 @@
-# Pricewatch — Website Price Tracker (FastAPI)
+# Pricewatch (Profiles) — per-user SMTP/SMS
 
-Track prices from product pages, get alerts (email/SMS) on change, and view a simple trending table.
+This fork adds **Notification Profiles** so each person can save their own SMTP (email) and Twilio (SMS) credentials in an **Admin** section, then select a profile when creating a tracker.
+
+> ⚠️ Dev note: This stores secrets in **SQLite** for demo purposes. For production, use a secrets manager and encrypted storage.
 
 ## Quickstart
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
+python -m venv .venv && . .venv/Scripts/activate  # or source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env  # fill credentials
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+cp .env.example .env
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+# open http://localhost:8000
 ```
+- Create profiles at **/admin/profiles**
+- Add trackers on the home page and choose a profile
+- Scheduler runs every `SCHEDULE_MINUTES`
 
-Docker:
-```bash
-docker compose up --build
-```
-
-**Note**: Respect site ToS and robots.txt.
+## Important
+- If you used a previous version, **delete `pricewatch.db`** to allow the new tables/columns to be created (or add proper migrations with Alembic).

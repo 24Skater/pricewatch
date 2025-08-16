@@ -31,6 +31,16 @@
       <input type="text" name="selector" placeholder="#price, .price, [data-test='price']" />
     </label>
 
+    <label>
+      Notification Profile (optional)
+      <select name="profile_id">
+        <option value="0">(use default env settings)</option>
+        {% for p in profiles %}
+          <option value="{{ p.id }}">{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
     <div class="actions">
       <button type="submit">Create tracker</button>
     </div>
@@ -44,7 +54,7 @@
   {% else %}
     <table>
       <thead>
-        <tr><th>Name</th><th>URL</th><th>Last Price</th><th>Actions</th></tr>
+        <tr><th>Name</th><th>URL</th><th>Last Price</th><th>Profile</th><th>Actions</th></tr>
       </thead>
       <tbody>
       {% for t in trackers %}
@@ -52,6 +62,7 @@
           <td>{{ t.name or '—' }}</td>
           <td class="truncate"><a href="{{ t.url }}" target="_blank" rel="noopener">{{ t.url }}</a></td>
           <td>{{ '$' ~ ('%.2f' % t.last_price) if t.last_price is not none else '—' }}</td>
+          <td>{{ t.profile.name if t.profile else 'default' }}</td>
           <td><a class="btn" href="/tracker/{{ t.id }}">Open</a></td>
         </tr>
       {% endfor %}

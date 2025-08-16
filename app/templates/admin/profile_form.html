@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>{{ 'Edit Profile' if profile else 'New Profile' }}</h1>
+  <form method="post" action="{{ '/admin/profiles/' ~ profile.id ~ '/edit' if profile else '/admin/profiles/new' }}" class="grid">
+    <label>
+      Profile name
+      <input type="text" name="name" value="{{ profile.name if profile else '' }}" required />
+    </label>
+
+    <h2 style="grid-column:1/-1; margin-top:8px;">Email (SMTP)</h2>
+    <label>
+      From email
+      <input type="email" name="email_from" value="{{ profile.email_from if profile else '' }}" placeholder="alerts@yourdomain.com" />
+    </label>
+    <label>
+      SMTP host
+      <input type="text" name="smtp_host" value="{{ profile.smtp_host if profile else '' }}" placeholder="smtp.gmail.com" />
+    </label>
+    <label>
+      SMTP port
+      <input type="number" name="smtp_port" value="{{ profile.smtp_port if profile else 587 }}" />
+    </label>
+    <label>
+      SMTP user
+      <input type="text" name="smtp_user" value="{{ profile.smtp_user if profile else '' }}" />
+    </label>
+    <label>
+      SMTP pass
+      <input type="password" name="smtp_pass" value="{{ profile.smtp_pass if profile else '' }}" />
+    </label>
+
+    <h2 style="grid-column:1/-1; margin-top:8px;">SMS (Twilio)</h2>
+    <label>
+      Account SID
+      <input type="text" name="twilio_account_sid" value="{{ profile.twilio_account_sid if profile else '' }}" />
+    </label>
+    <label>
+      Auth token
+      <input type="password" name="twilio_auth_token" value="{{ profile.twilio_auth_token if profile else '' }}" />
+    </label>
+    <label>
+      From number
+      <input type="text" name="twilio_from_number" value="{{ profile.twilio_from_number if profile else '' }}" placeholder="+15551234567" />
+    </label>
+
+    <div class="actions">
+      <button type="submit">{{ 'Save changes' if profile else 'Create profile' }}</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

@@ -5,6 +5,7 @@
   <p><strong>URL:</strong> <a href="{{ tracker.url }}" target="_blank" rel="noopener">{{ tracker.url }}</a></p>
   <p><strong>Alert:</strong> {{ tracker.alert_method|upper }} → {{ tracker.contact }}</p>
   <p><strong>Selector:</strong> {{ tracker.selector or '—' }}</p>
+  <p><strong>Profile:</strong> {{ tracker.profile.name if tracker.profile else 'default env' }}</p>
   <p><strong>Current price:</strong> {{ '$' ~ ('%.2f' % tracker.last_price) if tracker.last_price is not none else '—' }}</p>
 </section>
 
