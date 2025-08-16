@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>Add a Tracker</h1>
+  <form method="post" action="/trackers" class="grid">
+    <label>
+      Product URL
+      <input type="url" name="url" placeholder="https://example.com/product" required />
+    </label>
+
+    <label>
+      Name (optional)
+      <input type="text" name="name" placeholder="Behringer X32" />
+    </label>
+
+    <label>
+      Alert method
+      <select name="alert_method" required>
+        <option value="email">Email</option>
+        <option value="sms">SMS</option>
+      </select>
+    </label>
+
+    <label>
+      Contact (email or phone)
+      <input type="text" name="contact" placeholder="you@example.com or +15551234567" required />
+    </label>
+
+    <label>
+      CSS selector (optional)
+      <input type="text" name="selector" placeholder="#price, .price, [data-test='price']" />
+    </label>
+
+    <div class="actions">
+      <button type="submit">Create tracker</button>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Existing Trackers</h2>
+  {% if not trackers %}
+    <p>No trackers yet — add one above.</p>
+  {% else %}
+    <table>
+      <thead>
+        <tr><th>Name</th><th>URL</th><th>Last Price</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+      {% for t in trackers %}
+        <tr>
+          <td>{{ t.name or '—' }}</td>
+          <td class="truncate"><a href="{{ t.url }}" target="_blank" rel="noopener">{{ t.url }}</a></td>
+          <td>{{ '$' ~ ('%.2f' % t.last_price) if t.last_price is not none else '—' }}</td>
+          <td><a class="btn" href="/tracker/{{ t.id }}">Open</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</section>
+{% endblock %}

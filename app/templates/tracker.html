@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>{{ tracker.name or 'Tracker ' ~ tracker.id }}</h1>
+  <p><strong>URL:</strong> <a href="{{ tracker.url }}" target="_blank" rel="noopener">{{ tracker.url }}</a></p>
+  <p><strong>Alert:</strong> {{ tracker.alert_method|upper }} → {{ tracker.contact }}</p>
+  <p><strong>Selector:</strong> {{ tracker.selector or '—' }}</p>
+  <p><strong>Current price:</strong> {{ '$' ~ ('%.2f' % tracker.last_price) if tracker.last_price is not none else '—' }}</p>
+</section>
+
+<section class="card">
+  <h2>Trending (History)</h2>
+  {% if not history %}
+    <p>No history yet — the scheduler will populate after the first poll.</p>
+  {% else %}
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Price</th><th>Change</th></tr>
+      </thead>
+      <tbody>
+        {% for h in history %}
+          <tr>
+            <td>{{ h.checked_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td>${{ '%.2f' % h.price }}</td>
+            <td>
+              {% if h.delta is none %}—
+              {% elif h.delta < 0 %}<span class="down">▼ -${{ '%.2f' % (-h.delta) }}</span>
+              {% elif h.delta > 0 %}<span class="up">▲ +${{ '%.2f' % h.delta }}</span>
+              {% else %}0.00{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</section>
+{% endblock %}
