@@ -1,5 +1,6 @@
 from typing import Optional, List
-from pydantic import BaseSettings, validator, HttpUrl
+from pydantic import HttpUrl, field_validator
+from pydantic_settings import BaseSettings
 import os
 
 
@@ -49,22 +50,25 @@ class Settings(BaseSettings):
     enable_metrics: bool = False
     metrics_port: int = 9090
     
-    @validator("environment")
+    @field_validator("environment")
+    @classmethod
     def validate_environment(cls, v):
         if v not in ["development", "staging", "production"]:
             raise ValueError("Environment must be development, staging, or production")
         return v
     
-    @validator("secret_key")
+    @field_validator("secret_key")
+    @classmethod
     def validate_secret_key(cls, v):
         if len(v) < 32:
             raise ValueError("Secret key must be at least 32 characters long")
         return v
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "case_sensitive": False
+    }
 
 
 # Global settings instance
