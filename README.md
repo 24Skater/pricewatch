@@ -199,13 +199,29 @@ python -m pytest tests/ -v
 python -m pytest tests/test_security.py -v
 python -m pytest tests/test_api.py -v
 python -m pytest tests/test_services.py -v
+python -m pytest tests/test_scraper.py -v
+python -m pytest tests/test_notifications.py -v
+python -m pytest tests/test_integration.py -v
+python -m pytest tests/test_monitoring.py -v
 ```
 
 ### Test Coverage
 ```bash
-# Run with coverage
+# Run with coverage report
 python -m pytest tests/ --cov=app --cov-report=html
+
+# Run with coverage and fail if below 80%
+python -m pytest tests/ --cov=app --cov-fail-under=80
+
+# Generate coverage report
+python -m pytest tests/ --cov=app --cov-report=term-missing
 ```
+
+### Coverage Requirements
+- **Minimum coverage**: 80%
+- **Coverage configuration**: See `.coveragerc`
+- **HTML report**: Generated in `htmlcov/` directory
+- **CI enforcement**: Coverage check runs on every PR
 
 ## 🚀 Deployment
 

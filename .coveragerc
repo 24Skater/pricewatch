@@ -1,0 +1,80 @@
+# Coverage.py configuration
+# https://coverage.readthedocs.io/
+
+[run]
+# Source directory to measure coverage for
+source = app
+
+# Files to omit from coverage
+omit = 
+    app/__init__.py
+    */tests/*
+    */__pycache__/*
+    */migrations/*
+    
+# Branch coverage for more accurate reporting
+branch = True
+
+# Parallel mode for running tests in parallel
+parallel = True
+
+# Context for tracking which tests hit which lines
+dynamic_context = test_function
+
+
+[report]
+# Fail if coverage is below this percentage
+fail_under = 80
+
+# Show line numbers of statements not covered
+show_missing = True
+
+# Skip files with 100% coverage in summary
+skip_covered = False
+
+# Skip empty files
+skip_empty = True
+
+# Exclude lines matching these patterns
+exclude_lines =
+    # Don't complain about missing debug-only code
+    pragma: no cover
+    
+    # Don't complain if tests don't hit defensive assertions
+    raise AssertionError
+    raise NotImplementedError
+    
+    # Don't complain if non-runnable code isn't run
+    if __name__ == .__main__.:
+    
+    # Don't complain about abstract methods
+    @abstractmethod
+    
+    # Don't complain about type checking blocks
+    if TYPE_CHECKING:
+    
+    # Don't complain about pass statements
+    pass
+
+# Output formats
+precision = 2
+
+
+[html]
+# Directory for HTML report
+directory = htmlcov
+
+# Title for HTML report
+title = Pricewatch Test Coverage Report
+
+
+[xml]
+# Output file for XML report (for CI tools)
+output = coverage.xml
+
+
+[json]
+# Output file for JSON report
+output = coverage.json
+pretty_print = True
+
