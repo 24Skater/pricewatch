@@ -9,6 +9,7 @@ import re
 import json
 from typing import Optional, Tuple, List, Set
 import requests
+import httpx
 from bs4 import BeautifulSoup, Tag
 from contextlib import suppress
 
@@ -56,6 +57,8 @@ POS_NEAR: Set[str] = {
 def fetch_html(url: str) -> str:
     """Fetch HTML content from a URL using standard HTTP request.
     
+    This is the synchronous version used by background jobs and scheduler.
+    
     Args:
         url: The URL to fetch content from
         
@@ -68,6 +71,32 @@ def fetch_html(url: str) -> str:
     resp = requests.get(url, headers=HEADERS, timeout=settings.request_timeout)
     resp.raise_for_status()
     return resp.text
+
+
+async def fetch_html_async(url: str) -> str:
+    """Fetch HTML content from a URL using async HTTP client.
+    
+    This is the asynchronous version for use in FastAPI endpoints
+    to avoid blocking the event loop.
+    
+    Args:
+        url: The URL to fetch content from
+        
+    Returns:
+        The HTML content as a string
+        
+    Raises:
+        httpx.HTTPError: If the request fails
+    """
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            url,
+            headers=HEADERS,
+            timeout=settings.request_timeout,
+            follow_redirects=True
+        )
+        response.raise_for_status()
+        return response.text
 
 
 def fetch_html_js(url: str) -> str:

@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     
     # Database
     database_url: str = "sqlite:///pricewatch.db"
+    db_pool_size: int = 5
+    db_max_overflow: int = 10
+    db_pool_timeout: int = 30
+    db_query_timeout: int = 30  # Query timeout in seconds
     
     # Security
     secret_key: str = "your-secret-key-change-in-production"
@@ -31,6 +35,7 @@ class Settings(BaseSettings):
     request_timeout: int = 30
     max_retries: int = 3
     use_js_fallback: bool = False
+    use_async_client: bool = False  # Use async HTTP client for API endpoints
     schedule_minutes: int = 30
     
     # SMTP (Default/Environment)

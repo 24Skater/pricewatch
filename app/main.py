@@ -1,11 +1,13 @@
 import os
 import time
 import uuid
+import hashlib
 from typing import Optional
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Depends, Request, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from prometheus_client import CONTENT_TYPE_LATEST
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,7 +34,7 @@ from .exceptions import (
 from .logging_config import get_logger, setup_logging
 from .config import settings
 from .security import rate_limiter
-from .monitoring import health_checker
+from .monitoring import health_checker, get_prometheus_metrics, pricewatch_requests_total, pricewatch_request_duration_seconds
 from .csrf import get_csrf_token, validate_csrf_token, is_csrf_exempt, CSRF_FORM_FIELD
 
 # Setup logging
@@ -142,6 +144,84 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 app.add_middleware(SecurityHeadersMiddleware)
 
 
+# Caching Headers Middleware
+class CachingHeadersMiddleware(BaseHTTPMiddleware):
+    """Middleware to add appropriate caching headers to responses.
+    
+    - Static assets: Cache-Control with long max-age
+    - Tracker detail pages: ETag support
+    - Sensitive endpoints: no-cache
+    """
+    
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        
+        path = request.url.path
+        
+        # Sensitive endpoints - no caching
+        if any(path.startswith(prefix) for prefix in ["/admin", "/health", "/metrics", "/api"]):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        # Static files - long cache
+        elif path.startswith("/static"):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        # Tracker detail pages - short cache with ETag support
+        elif path.startswith("/tracker/") and request.method == "GET":
+            # Allow short cache but enable revalidation
+            response.headers["Cache-Control"] = "private, max-age=60, must-revalidate"
+        # Other pages - short cache
+        else:
+            response.headers["Cache-Control"] = "private, max-age=300"
+        
+        return response
+
+app.add_middleware(CachingHeadersMiddleware)
+
+
+# Prometheus Metrics Middleware
+class PrometheusMetricsMiddleware(BaseHTTPMiddleware):
+    """Middleware to collect Prometheus metrics for HTTP requests."""
+    
+    async def dispatch(self, request: Request, call_next):
+        # Skip metrics endpoint to avoid recursion
+        if request.url.path == "/metrics":
+            return await call_next(request)
+        
+        # Record start time
+        start_time = time.time()
+        
+        # Process request
+        response = await call_next(request)
+        
+        # Calculate duration
+        duration = time.time() - start_time
+        
+        # Extract endpoint (simplified path)
+        endpoint = request.url.path
+        # Normalize endpoint (remove IDs for better aggregation)
+        if "/tracker/" in endpoint and request.method == "GET":
+            endpoint = "/tracker/{id}"
+        elif "/admin/profiles/" in endpoint:
+            endpoint = "/admin/profiles/{id}"
+        
+        # Record metrics
+        pricewatch_requests_total.labels(
+            method=request.method,
+            endpoint=endpoint,
+            status=response.status_code
+        ).inc()
+        
+        pricewatch_request_duration_seconds.labels(
+            method=request.method,
+            endpoint=endpoint
+        ).observe(duration)
+        
+        return response
+
+app.add_middleware(PrometheusMetricsMiddleware)
+
+
 # Exception handlers for consistent JSON error responses
 from fastapi.responses import JSONResponse
 
@@ -221,7 +301,7 @@ def index(request: Request, db: Session = Depends(get_db)):
         tracker_service = TrackerService(db)
         profile_service = ProfileService(db)
         
-        trackers = tracker_service.get_all_trackers()
+        trackers, _ = tracker_service.get_all_trackers()
         profiles = profile_service.get_all_profiles()
         
         return templates.TemplateResponse(
@@ -293,10 +373,23 @@ def tracker_detail(tracker_id: int, request: Request, db: Session = Depends(get_
             PriceHistory.tracker_id == tracker_id
         ).order_by(PriceHistory.checked_at.desc()).all()
         
-        return templates.TemplateResponse(
+        # Generate ETag based on tracker and latest price check
+        etag_data = f"{tracker_id}-{tracker.updated_at.isoformat() if tracker.updated_at else ''}"
+        if history:
+            etag_data += f"-{history[0].checked_at.isoformat()}"
+        etag = hashlib.md5(etag_data.encode()).hexdigest()
+        
+        # Check if client has matching ETag
+        if_none_match = request.headers.get("If-None-Match")
+        if if_none_match == etag:
+            return Response(status_code=304)  # Not Modified
+        
+        response = templates.TemplateResponse(
             "tracker.html", 
             {"request": request, "tracker": tracker, "history": history}
         )
+        response.headers["ETag"] = etag
+        return response
     except HTTPException:
         raise
     except Exception as e:
@@ -669,7 +762,7 @@ def api_list_trackers(db: Session = Depends(get_db)):
     """API endpoint to list all trackers."""
     try:
         tracker_service = TrackerService(db)
-        trackers = tracker_service.get_all_trackers()
+        trackers, _ = tracker_service.get_all_trackers()
         return [TrackerOut.model_validate(tracker) for tracker in trackers]
     except Exception as e:
         logger.error(f"Failed to list trackers via API: {e}")
@@ -700,14 +793,22 @@ def detailed_health():
 
 @app.get("/metrics")
 def metrics():
-    """Application metrics endpoint."""
+    """Prometheus metrics endpoint."""
     try:
-        health_data = health_checker.comprehensive_health_check()
-        return {
-            "application": health_data["checks"]["application"],
-            "system": health_data["checks"]["system_resources"],
-            "uptime": health_data["checks"]["uptime"]
-        }
+        if settings.enable_metrics:
+            metrics_data = get_prometheus_metrics()
+            return Response(
+                content=metrics_data,
+                media_type=CONTENT_TYPE_LATEST
+            )
+        else:
+            # Fallback to JSON metrics if Prometheus is disabled
+            health_data = health_checker.comprehensive_health_check()
+            return {
+                "application": health_data["checks"]["application"],
+                "system": health_data["checks"]["system_resources"],
+                "uptime": health_data["checks"]["uptime"]
+            }
     except Exception as e:
         logger.error(f"Metrics collection failed: {e}")
         return {"error": str(e)}

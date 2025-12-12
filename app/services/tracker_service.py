@@ -1,7 +1,8 @@
 """Tracker business logic service."""
 
 from typing import Optional, List, Tuple
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 from app.models import Tracker, PriceHistory, NotificationProfile
 from app.schemas import TrackerCreate, TrackerOut
 from app.scraper import get_price
@@ -9,6 +10,10 @@ from app.services.base import BaseService
 from app.services.notification_service import notification_service
 from app.exceptions import ValidationError, ScrapingError, DatabaseError
 from app.security import input_validator
+from app.config import settings
+from app.logging_config import get_logger
+from app.monitoring import pricewatch_scrape_errors_total
+from urllib.parse import urlparse
 
 
 class TrackerService(BaseService[Tracker]):
@@ -82,12 +87,63 @@ class TrackerService(BaseService[Tracker]):
             raise DatabaseError(f"Failed to create tracker: {e}")
     
     def get_tracker(self, tracker_id: int) -> Optional[Tracker]:
-        """Get a tracker by ID."""
-        return self.db.query(Tracker).filter(Tracker.id == tracker_id).first()
+        """Get a tracker by ID with profile relationship loaded."""
+        query = self.db.query(Tracker).options(
+            joinedload(Tracker.profile)
+        ).filter(Tracker.id == tracker_id)
+        
+        # Apply query timeout if configured
+        if settings.db_query_timeout and not ("sqlite" in settings.database_url):
+            query = query.execution_options(timeout=settings.db_query_timeout)
+        
+        tracker = query.first()
+        
+        # Log query count in debug mode
+        if settings.debug:
+            query_count = len(self.db.identity_map)
+            get_logger(__name__).debug(f"Query returned {query_count} objects in identity map")
+        
+        return tracker
     
-    def get_all_trackers(self) -> List[Tracker]:
-        """Get all trackers."""
-        return self.db.query(Tracker).order_by(Tracker.created_at.desc()).all()
+    def get_all_trackers(self, page: int = 1, per_page: int = 100) -> Tuple[List[Tracker], int]:
+        """Get all trackers with pagination and profile relationship loaded.
+        
+        Args:
+            page: Page number (1-indexed)
+            per_page: Number of items per page
+            
+        Returns:
+            Tuple of (trackers list, total count)
+        """
+        # Count total trackers
+        total_query = self.db.query(func.count(Tracker.id))
+        if settings.db_query_timeout and not ("sqlite" in settings.database_url):
+            total_query = total_query.execution_options(timeout=settings.db_query_timeout)
+        total = total_query.scalar()
+        
+        # Get paginated trackers with profile relationship
+        query = self.db.query(Tracker).options(
+            joinedload(Tracker.profile)
+        ).order_by(Tracker.created_at.desc())
+        
+        # Apply query timeout if configured
+        if settings.db_query_timeout and not ("sqlite" in settings.database_url):
+            query = query.execution_options(timeout=settings.db_query_timeout)
+        
+        # Apply pagination
+        offset = (page - 1) * per_page
+        trackers = query.offset(offset).limit(per_page).all()
+        
+        # Log query count in debug mode
+        if settings.debug:
+            query_count = len(self.db.identity_map)
+            get_logger(__name__).debug(
+                f"get_all_trackers: page={page}, per_page={per_page}, "
+                f"total={total}, returned={len(trackers)}, "
+                f"identity_map_size={query_count}"
+            )
+        
+        return trackers, total
     
     def update_tracker(self, tracker_id: int, tracker_data: TrackerCreate) -> Optional[Tracker]:
         """Update a tracker."""
@@ -204,5 +260,11 @@ class TrackerService(BaseService[Tracker]):
             
         except Exception as e:
             self.logger.error(f"Failed to refresh price for tracker {tracker_id}: {e}")
+            # Record scrape error metric
+            try:
+                domain = urlparse(tracker.url).netloc or "unknown"
+                pricewatch_scrape_errors_total.labels(url_domain=domain).inc()
+            except Exception:
+                pass  # Don't fail on metric recording
             raise ScrapingError(f"Failed to refresh price: {e}")
     

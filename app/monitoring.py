@@ -5,11 +5,38 @@ import psutil
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
 from app.database import SessionLocal
 from app.logging_config import get_logger
 from app.config import settings
 
 logger = get_logger(__name__)
+
+# Prometheus metrics
+pricewatch_requests_total = Counter(
+    'pricewatch_requests_total',
+    'Total number of HTTP requests',
+    ['method', 'endpoint', 'status']
+)
+
+pricewatch_request_duration_seconds = Histogram(
+    'pricewatch_request_duration_seconds',
+    'HTTP request duration in seconds',
+    ['method', 'endpoint'],
+    buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0)
+)
+
+pricewatch_trackers_total = Gauge(
+    'pricewatch_trackers_total',
+    'Total number of trackers',
+    ['status']  # 'active' or 'inactive'
+)
+
+pricewatch_scrape_errors_total = Counter(
+    'pricewatch_scrape_errors_total',
+    'Total number of scraping errors',
+    ['url_domain']
+)
 
 
 class HealthChecker:
@@ -24,11 +51,16 @@ class HealthChecker:
             db = SessionLocal()
             start_time = time.time()
             
+            # Apply query timeout if configured
+            query_options = {}
+            if settings.db_query_timeout and not ("sqlite" in settings.database_url):
+                query_options = {"timeout": settings.db_query_timeout}
+            
             # Test basic connectivity
-            result = db.execute(text("SELECT 1")).fetchone()
+            result = db.execute(text("SELECT 1"), execution_options=query_options).fetchone()
             
             # Test query performance
-            db.execute(text("SELECT COUNT(*) FROM trackers")).fetchone()
+            db.execute(text("SELECT COUNT(*) FROM trackers"), execution_options=query_options).fetchone()
             
             response_time = time.time() - start_time
             
@@ -82,18 +114,25 @@ class HealthChecker:
         try:
             db = SessionLocal()
             
+            # Apply query timeout if configured
+            query_options = {}
+            if settings.db_query_timeout and not ("sqlite" in settings.database_url):
+                query_options = {"timeout": settings.db_query_timeout}
+            
             # Get tracker statistics
-            tracker_count = db.execute(text("SELECT COUNT(*) FROM trackers")).fetchone()[0]
+            tracker_count = db.execute(text("SELECT COUNT(*) FROM trackers"), execution_options=query_options).fetchone()[0]
             active_trackers = db.execute(
-                text("SELECT COUNT(*) FROM trackers WHERE is_active = 1")
+                text("SELECT COUNT(*) FROM trackers WHERE is_active = 1"),
+                execution_options=query_options
             ).fetchone()[0]
             
             # Get profile count
-            profile_count = db.execute(text("SELECT COUNT(*) FROM notification_profiles")).fetchone()[0]
+            profile_count = db.execute(text("SELECT COUNT(*) FROM notification_profiles"), execution_options=query_options).fetchone()[0]
             
             # Get recent price history
             recent_prices = db.execute(
-                text("SELECT COUNT(*) FROM price_history WHERE checked_at > datetime('now', '-1 hour')")
+                text("SELECT COUNT(*) FROM price_history WHERE checked_at > datetime('now', '-1 hour')"),
+                execution_options=query_options
             ).fetchone()[0]
             
             db.close()
@@ -154,3 +193,36 @@ class HealthChecker:
 
 # Global health checker instance
 health_checker = HealthChecker()
+
+
+def get_prometheus_metrics() -> bytes:
+    """Generate Prometheus metrics in text format.
+    
+    Returns:
+        Prometheus metrics as bytes
+    """
+    # Update tracker gauge metrics
+    try:
+        db = SessionLocal()
+        query_options = {}
+        if settings.db_query_timeout and not ("sqlite" in settings.database_url):
+            query_options = {"timeout": settings.db_query_timeout}
+        
+        active_count = db.execute(
+            text("SELECT COUNT(*) FROM trackers WHERE is_active = 1"),
+            execution_options=query_options
+        ).fetchone()[0]
+        
+        inactive_count = db.execute(
+            text("SELECT COUNT(*) FROM trackers WHERE is_active = 0"),
+            execution_options=query_options
+        ).fetchone()[0]
+        
+        pricewatch_trackers_total.labels(status='active').set(active_count)
+        pricewatch_trackers_total.labels(status='inactive').set(inactive_count)
+        
+        db.close()
+    except Exception as e:
+        logger.warning(f"Failed to update tracker metrics: {e}")
+    
+    return generate_latest()
