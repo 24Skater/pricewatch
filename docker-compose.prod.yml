@@ -1,0 +1,64 @@
+# =============================================================================
+# Pricewatch Docker Compose Production Overrides
+# =============================================================================
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# =============================================================================
+
+services:
+  pricewatch:
+    # Don't build in production - use pre-built image
+    image: pricewatch:latest
+    build: !reset null
+    
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - LOG_FORMAT=json
+    
+    # Stricter resource limits for production
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+      
+      # Production replicas (if using swarm mode)
+      replicas: 1
+      
+      # Update configuration
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+      
+      # Rollback configuration
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+    
+    # Always restart in production
+    restart: always
+    
+    # Production logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
+        labels: "production"
+    
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    
+    # Read-only root filesystem (application writes to volumes only)
+    read_only: true
+    
+    # Temporary filesystem for runtime needs
+    tmpfs:
+      - /tmp:size=100M,mode=1777
+
