@@ -1,6 +1,29 @@
-# Pricewatch v2.0 - Enterprise Price Tracking Application
+# Pricewatch v2.1 - Enterprise Price Tracking Application
+
+[![CI](https://github.com/pricewatch/pricewatch/workflows/CI/badge.svg)](https://github.com/pricewatch/pricewatch/actions)
+[![Coverage](https://img.shields.io/badge/coverage-80%25-brightgreen)](https://github.com/pricewatch/pricewatch)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 **Pricewatch** is a comprehensive price tracking application that monitors product prices across the web and sends notifications when prices change. Built with FastAPI and featuring enterprise-grade security, monitoring, and scalability features.
+
+## 📑 Table of Contents
+
+- [What is Pricewatch?](#-what-is-pricewatch)
+- [Quick Start](#-quick-start)
+- [How to Use](#-how-to-use)
+- [Configuration](#-configuration)
+- [Architecture](#-architecture)
+- [Testing](#-testing)
+- [Deployment](#-deployment)
+- [Monitoring](#-monitoring)
+- [Security](#-security)
+- [Built With](#-built-with)
+- [Contributing](#-contributing)
+- [License](#-license)
+- [Support](#-support)
+- [Acknowledgments](#-acknowledgments)
 
 ## 🎯 What is Pricewatch?
 
@@ -25,7 +48,7 @@ Pricewatch is a web application that helps you:
 
 ### Prerequisites
 
-- **Python 3.8+** - Download from [python.org](https://python.org)
+- **Python 3.10+** - Download from [python.org](https://python.org)
 - **Git** - Download from [git-scm.com](https://git-scm.com)
 
 ### Installation
@@ -171,22 +194,70 @@ TWILIO_FROM_NUMBER=your-twilio-number
 
 ## 🏗️ Architecture
 
+### System Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Pricewatch v2.1                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐ │
+│  │   Web UI     │    │   REST API   │    │  Health API  │ │
+│  │  (Templates) │    │  (FastAPI)   │    │  (Monitoring)│ │
+│  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘ │
+│         │                   │                    │         │
+│         └───────────────────┼────────────────────┘         │
+│                             │                              │
+│                    ┌────────▼────────┐                     │
+│                    │  Service Layer  │                     │
+│                    ├─────────────────┤                     │
+│                    │ TrackerService  │                     │
+│                    │ ProfileService  │                     │
+│                    │SchedulerService │                     │
+│                    │NotificationSvc  │                     │
+│                    └────────┬────────┘                     │
+│                             │                              │
+│         ┌───────────────────┼───────────────────┐          │
+│         │                   │                   │          │
+│  ┌──────▼──────┐   ┌────────▼────────┐  ┌──────▼──────┐  │
+│  │   Scraper   │   │   Database      │  │  Security   │  │
+│  │  (Price     │   │  (SQLAlchemy)   │  │  (Encrypt,  │  │
+│  │ Extraction) │   │                 │  │  Validate,  │  │
+│  └─────────────┘   └─────────────────┘  │  Rate Limit)│  │
+│                                          └─────────────┘  │
+│                                                           │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │              External Services                      │  │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐         │  │
+│  │  │   SMTP   │  │  Twilio  │  │  Web     │         │  │
+│  │  │  (Email) │  │   (SMS)  │  │ Scraping │         │  │
+│  │  └──────────┘  └──────────┘  └──────────┘         │  │
+│  └─────────────────────────────────────────────────────┘  │
+│                                                           │
+└───────────────────────────────────────────────────────────┘
+```
+
 ### Service Layer
 - **TrackerService**: Business logic for price trackers
 - **ProfileService**: Notification profile management
 - **SchedulerService**: Background price checking
+- **NotificationService**: Centralized notification handling
 
 ### Security Features
-- **Encryption**: Sensitive data encrypted at rest
-- **Validation**: Comprehensive input validation
-- **Rate Limiting**: Protection against abuse
-- **XSS Prevention**: Input sanitization
+- **Encryption**: Sensitive data encrypted at rest using Fernet
+- **Validation**: Comprehensive input validation with Pydantic
+- **Rate Limiting**: Protection against abuse with automatic cleanup
+- **XSS Prevention**: Input sanitization and output encoding
+- **CSRF Protection**: Token-based CSRF protection on all forms
+- **Security Headers**: Comprehensive security headers middleware
+- **SSRF Protection**: URL validation preventing private IP access
+- **Request Tracking**: Full request lifecycle tracking with UUIDs
 
 ### Database
 - **SQLAlchemy ORM**: Object-relational mapping
 - **Alembic Migrations**: Database versioning
 - **Strategic Indexing**: Query performance optimization
-- **Connection Pooling**: Efficient resource usage
+- **Connection Pooling**: Efficient resource usage (PostgreSQL)
 
 ## 🧪 Testing
 
@@ -271,11 +342,32 @@ docker run -p 8000:8000 --env-file .env pricewatch
 
 ## 🤝 Contributing
 
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
 1. Fork the repository
-2. Create a feature branch
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
 4. Add tests for new features
-5. Submit a pull request
+5. Ensure all tests pass (`pytest tests/`)
+6. Run pre-commit hooks (`pre-commit run --all-files`)
+7. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+8. Push to the branch (`git push origin feature/amazing-feature`)
+9. Open a Pull Request
+
+Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
+
+## 🛠️ Built With
+
+- **[FastAPI](https://fastapi.tiangolo.com/)** - Modern, fast web framework for building APIs
+- **[SQLAlchemy](https://www.sqlalchemy.org/)** - SQL toolkit and ORM
+- **[Alembic](https://alembic.sqlalchemy.org/)** - Database migration tool
+- **[BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/)** - HTML parsing and scraping
+- **[Pydantic](https://docs.pydantic.dev/)** - Data validation using Python type annotations
+- **[Jinja2](https://jinja.palletsprojects.com/)** - Template engine
+- **[Cryptography](https://cryptography.io/)** - Encryption and security
+- **[Ruff](https://github.com/astral-sh/ruff)** - Fast Python linter and formatter
+- **[Pytest](https://pytest.org/)** - Testing framework
+- **[Docker](https://www.docker.com/)** - Containerization
 
 ## 📝 License
 
@@ -300,6 +392,12 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Review the [CHANGELOG.md](CHANGELOG.md)
 - Run `python test_setup.py` for diagnostics
 
+## 🙏 Acknowledgments
+
+- **Contributor Covenant** - For the Code of Conduct template
+- **FastAPI Community** - For excellent documentation and support
+- **All Contributors** - Thank you to everyone who has contributed to Pricewatch!
+
 ---
 
-**Pricewatch v2.0** - Enterprise-grade price tracking made simple! 🚀
+**Pricewatch v2.1** - Enterprise-grade price tracking made simple! 🚀
