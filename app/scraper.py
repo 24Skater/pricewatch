@@ -5,13 +5,14 @@ using multiple strategies: JSON-LD structured data, meta tags, and
 smart content analysis.
 """
 
-import os
 import re
 import json
 from typing import Optional, Tuple, List, Set
 import requests
 from bs4 import BeautifulSoup, Tag
 from contextlib import suppress
+
+from app.config import settings
 
 # Type alias for price result: (price, currency, title)
 PriceResult = Tuple[Optional[float], str, Optional[str]]
@@ -22,7 +23,6 @@ PriceParseResult = Tuple[float, str]
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (compatible; PricewatchBot/1.0; +https://example.com/bot)"
 }
-USE_JS = os.getenv("USE_JS_FALLBACK") in {"1", "true", "True"}
 
 PRICE_REGEX = re.compile(r"""
     (?<![A-Za-z0-9])
@@ -65,7 +65,7 @@ def fetch_html(url: str) -> str:
     Raises:
         requests.RequestException: If the request fails
     """
-    resp = requests.get(url, headers=HEADERS, timeout=30)
+    resp = requests.get(url, headers=HEADERS, timeout=settings.request_timeout)
     resp.raise_for_status()
     return resp.text
 
@@ -86,10 +86,12 @@ def fetch_html_js(url: str) -> str:
         Exception: If browser automation fails
     """
     from playwright.sync_api import sync_playwright
+    # Convert seconds to milliseconds for Playwright
+    timeout_ms = settings.request_timeout * 1000
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page(user_agent=HEADERS["User-Agent"])
-        page.goto(url, wait_until="domcontentloaded", timeout=30000)
+        page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
         with suppress(Exception):
             page.wait_for_timeout(1500)
         html = page.content()
@@ -337,7 +339,7 @@ def get_price(url: str, selector: Optional[str] = None) -> PriceResult:
         return r[0], r[1], title
     
     # JavaScript fallback for dynamic content
-    if USE_JS:
+    if settings.use_js_fallback:
         try:
             html_js = fetch_html_js(url)
             soup_js = BeautifulSoup(html_js, "lxml")

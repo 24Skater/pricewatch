@@ -21,7 +21,7 @@
 | Phase | Name | Tasks | Status |
 |-------|------|-------|--------|
 | 1 | Security Hardening | 10 | ✅ Complete |
-| 2 | Code Quality & DRY | 8 | 🔄 In Progress (5/8) |
+| 2 | Code Quality & DRY | 8 | ✅ Complete |
 | 3 | Testing Improvements | 7 | ⬜ Not Started |
 | 4 | DevOps & Infrastructure | 8 | ⬜ Not Started |
 | 5 | Documentation | 6 | ⬜ Not Started |
@@ -297,44 +297,44 @@
 ## Task 2.6: Consolidate Configuration Access
 **File**: `app/scraper.py`
 
-- [ ] **2.6.1** Remove direct `os.getenv()` calls from `scraper.py`
-- [ ] **2.6.2** Use `settings.use_js_fallback` instead of `USE_JS` constant
-- [ ] **2.6.3** Use `settings.request_timeout` instead of hardcoded `30`
-- [ ] **2.6.4** Remove module-level constants that duplicate config
+- [x] **2.6.1** Remove direct `os.getenv()` calls from `scraper.py`
+- [x] **2.6.2** Use `settings.use_js_fallback` instead of `USE_JS` constant
+- [x] **2.6.3** Use `settings.request_timeout` instead of hardcoded `30`
+- [x] **2.6.4** Remove module-level constants that duplicate config
 
 **Acceptance Criteria**:
-- All configuration accessed via `settings` object
-- No `os.getenv()` calls outside `config.py`
+- ✅ All configuration accessed via `settings` object
+- ✅ No `os.getenv()` calls outside `config.py`
 
 ---
 
 ## Task 2.7: Improve Error Messages
 **Files**: `app/exceptions.py`, all service files
 
-- [ ] **2.7.1** Add `code` field to all exception classes for machine-readable errors
-- [ ] **2.7.2** Add `details` field for additional context
-- [ ] **2.7.3** Create exception handler in `main.py` for consistent JSON error responses
-- [ ] **2.7.4** Update all `raise` statements to include meaningful messages
+- [x] **2.7.1** Add `code` field to all exception classes for machine-readable errors
+- [x] **2.7.2** Add `details` field for additional context
+- [x] **2.7.3** Create exception handler in `main.py` for consistent JSON error responses
+- [x] **2.7.4** Update all `raise` statements to include meaningful messages
 
 **Acceptance Criteria**:
-- All API errors return structured JSON: `{"error": "...", "code": "...", "details": {...}}`
-- Error messages are user-friendly
+- ✅ All API errors return structured JSON: `{"error": "...", "code": "...", "details": {...}}`
+- ✅ Error messages are user-friendly
 
 ---
 
 ## Task 2.8: Remove Duplicate Test File
 **File**: `tests/test_price_regex.py`
 
-- [ ] **2.8.1** Delete `tests/test_price_regex.py` (duplicate of `test_price_parsing.py`)
-- [ ] **2.8.2** Ensure `tests/test_price_parsing.py` has comprehensive regex tests
-- [ ] **2.8.3** Add edge case tests to `test_price_parsing.py`:
+- [x] **2.8.1** Delete `tests/test_price_regex.py` (duplicate of `test_price_parsing.py`)
+- [x] **2.8.2** Ensure `tests/test_price_parsing.py` has comprehensive regex tests
+- [x] **2.8.3** Add edge case tests to `test_price_parsing.py`:
   - Currency symbols (€, £, ¥)
   - Negative prices (error case)
   - Prices with spaces
 
 **Acceptance Criteria**:
-- No duplicate test files
-- Price parsing has comprehensive test coverage
+- ✅ No duplicate test files
+- ✅ Price parsing has comprehensive test coverage
 
 ---
 
@@ -1009,17 +1009,20 @@
 
 # 🔄 Status Updates
 
-## Current Phase: 2 (Code Quality & DRY)
-## Current Task: 2.6 (Consolidate Configuration Access)
+## Current Phase: 3 (Testing Improvements)
+## Current Task: 3.1 (Add Scraper Unit Tests)
 ## Last Updated: 2025-12-12
 ## Blockers: None
 
-### Phase 2 Progress: 🔄 (5/8 tasks)
+### Phase 2 Complete! ✅ (8/8 tasks)
 - ✅ Task 2.1: Extract Notification Service (6/6 subtasks complete)
 - ✅ Task 2.2: Improve Module Exports (4/4 subtasks complete)
 - ✅ Task 2.3: Add Type Hints to Scraper (4/4 subtasks complete)
 - ✅ Task 2.4: Fix Deprecated datetime.utcnow() (3/3 subtasks complete)
 - ✅ Task 2.5: Create Base Service Class (4/4 subtasks complete)
+- ✅ Task 2.6: Consolidate Configuration Access (4/4 subtasks complete)
+- ✅ Task 2.7: Improve Error Messages (4/4 subtasks complete)
+- ✅ Task 2.8: Remove Duplicate Test File (3/3 subtasks complete)
 
 ### Phase 1 Complete! ✅ (10/10 tasks)
 - ✅ Task 1.1: Fix Encryption Key Storage (5/5 subtasks complete)

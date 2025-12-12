@@ -25,7 +25,10 @@ from .scheduler import start_scheduler
 from .services.tracker_service import TrackerService
 from .services.profile_service import ProfileService
 from .services.scheduler_service import SchedulerService
-from .exceptions import ValidationError, SecurityError, ScrapingError, DatabaseError
+from .exceptions import (
+    PricewatchException, ValidationError, SecurityError, 
+    ScrapingError, DatabaseError, RateLimitError
+)
 from .logging_config import get_logger, setup_logging
 from .config import settings
 from .security import rate_limiter
@@ -137,6 +140,45 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 app.add_middleware(SecurityHeadersMiddleware)
+
+
+# Exception handlers for consistent JSON error responses
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(PricewatchException)
+async def pricewatch_exception_handler(request: Request, exc: PricewatchException):
+    """Handle all Pricewatch custom exceptions with structured JSON response."""
+    status_codes = {
+        "VALIDATION_ERROR": 400,
+        "SECURITY_ERROR": 403,
+        "SCRAPING_ERROR": 502,
+        "DATABASE_ERROR": 500,
+        "RATE_LIMIT_ERROR": 429,
+        "NOTIFICATION_ERROR": 500,
+        "CONFIGURATION_ERROR": 500,
+    }
+    status_code = status_codes.get(exc.code, 500)
+    
+    logger.warning(
+        f"{exc.code}: {exc.message}",
+        extra={"details": exc.details, "path": str(request.url.path)}
+    )
+    
+    return JSONResponse(
+        status_code=status_code,
+        content=exc.to_dict()
+    )
+
+
+@app.exception_handler(RateLimitError)
+async def rate_limit_exception_handler(request: Request, exc: RateLimitError):
+    """Handle rate limit exceptions with 429 status."""
+    logger.warning(f"Rate limit exceeded for {request.client.host}")
+    return JSONResponse(
+        status_code=429,
+        content=exc.to_dict(),
+        headers={"Retry-After": "60"}
+    )
 
 
 # CSRF validation dependency for POST endpoints
