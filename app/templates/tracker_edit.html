@@ -3,13 +3,14 @@
 <section class="card">
   <h1>Edit Tracker</h1>
   <form method="post" action="/tracker/{{ tracker.id }}/edit" class="grid">
+    <input type="hidden" name="{{ csrf_field_name }}" value="{{ csrf_token(request) }}" />
     <label>
       Name
-      <input type="text" name="name" value="{{ tracker.name or '' }}" placeholder="Optional">
+      <input type="text" name="name" value="{{ tracker.name or '' }}" placeholder="Optional" maxlength="500">
     </label>
     <label>
       Product URL
-      <input type="url" name="url" value="{{ tracker.url }}" required>
+      <input type="url" name="url" value="{{ tracker.url }}" required maxlength="2000">
     </label>
     <label>
       Alert method
@@ -20,11 +21,11 @@
     </label>
     <label>
       Contact (email or phone)
-      <input type="text" name="contact" value="{{ tracker.contact }}" required>
+      <input type="text" name="contact" value="{{ tracker.contact }}" required maxlength="255">
     </label>
     <label>
       CSS selector (optional)
-      <input type="text" name="selector" value="{{ tracker.selector or '' }}" placeholder=".product-price--final dollars">
+      <input type="text" name="selector" value="{{ tracker.selector or '' }}" placeholder=".product-price--final dollars" maxlength="1000">
     </label>
     <label>
       Notification Profile
@@ -49,6 +50,7 @@
 
 <section class="card">
   <form method="post" action="/tracker/{{ tracker.id }}/delete" onsubmit="return confirm('Delete this tracker? This cannot be undone.')">
+    <input type="hidden" name="{{ csrf_field_name }}" value="{{ csrf_token(request) }}" />
     <button class="btn danger" type="submit">Delete tracker</button>
   </form>
 </section>

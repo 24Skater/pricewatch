@@ -22,6 +22,7 @@
           <td style="display:flex; gap:8px;">
             <a class="btn" href="/admin/profiles/{{ p.id }}/edit">Edit</a>
             <form method="post" action="/admin/profiles/{{ p.id }}/delete" onsubmit="return confirm('Delete this profile?')">
+              <input type="hidden" name="{{ csrf_field_name }}" value="{{ csrf_token(request) }}" />
               <button class="btn danger" type="submit">Delete</button>
             </form>
           </td>

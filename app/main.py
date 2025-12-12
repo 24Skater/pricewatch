@@ -1,18 +1,22 @@
 import os
 import time
+import uuid
 from typing import Optional
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Depends, Request, Form, HTTPException, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
+from starlette.middleware.base import BaseHTTPMiddleware
 from urllib.parse import quote_plus
 from sqlalchemy.orm import Session
+
+from .context import set_request_id, get_request_id
 
 from .database import Base, engine, get_db, SessionLocal
 from .models import Tracker, PriceHistory, NotificationProfile
@@ -26,6 +30,7 @@ from .logging_config import get_logger, setup_logging
 from .config import settings
 from .security import rate_limiter
 from .monitoring import health_checker
+from .csrf import get_csrf_token, validate_csrf_token, is_csrf_exempt, CSRF_FORM_FIELD
 
 # Setup logging
 setup_logging()
@@ -63,9 +68,109 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Request ID Middleware
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    """Middleware to add unique request ID to each request.
+    
+    - Generates UUID for each request
+    - Stores in context variable for access throughout request lifecycle
+    - Adds X-Request-ID header to response
+    """
+    
+    async def dispatch(self, request: Request, call_next):
+        # Generate unique request ID
+        req_id = str(uuid.uuid4())
+        
+        # Store in shared context (accessible in logging)
+        set_request_id(req_id)
+        
+        # Store in request state for template access
+        request.state.request_id = req_id
+        
+        # Process request
+        response = await call_next(request)
+        
+        # Add request ID to response header
+        response.headers["X-Request-ID"] = req_id
+        
+        return response
+
+app.add_middleware(RequestIDMiddleware)
+
+
+# Security Headers Middleware
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Middleware to add security headers to all responses."""
+    
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        
+        # Prevent MIME type sniffing
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        
+        # Prevent clickjacking
+        response.headers["X-Frame-Options"] = "DENY"
+        
+        # Enable XSS filter in browsers
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        
+        # Control referrer information
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        
+        # Restrict browser features
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+        
+        # Content Security Policy (report-only mode for initial rollout)
+        csp = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: https:; "
+            "font-src 'self'; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self'"
+        )
+        response.headers["Content-Security-Policy-Report-Only"] = csp
+        
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+
+# CSRF validation dependency for POST endpoints
+async def verify_csrf(
+    request: Request,
+    csrf_token: str = Form(None, alias="csrf_token")
+) -> None:
+    """Dependency to verify CSRF token in form submissions."""
+    from .csrf import csrf_manager
+    
+    # Skip CSRF for exempt paths
+    if is_csrf_exempt(request.url.path):
+        return
+    
+    # Also check header for AJAX requests
+    token = csrf_token or request.headers.get("X-CSRF-Token")
+    
+    if not csrf_manager.validate_token(token, request):
+        logger.warning(
+            f"CSRF validation failed for {request.method} {request.url.path} "
+            f"from {request.client.host}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="CSRF validation failed. Please refresh the page and try again."
+        )
+
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
+
+# Add CSRF token function to Jinja2 templates
+templates.env.globals["csrf_token"] = get_csrf_token
+templates.env.globals["csrf_field_name"] = CSRF_FORM_FIELD
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request, db: Session = Depends(get_db)):
@@ -86,7 +191,7 @@ def index(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/trackers", response_class=HTMLResponse)
-def create_tracker(
+async def create_tracker(
     request: Request,
     url: str = Form(...),
     alert_method: str = Form(...),
@@ -94,7 +199,9 @@ def create_tracker(
     selector: str = Form(""),
     name: str = Form(""),
     profile_id: int = Form(0),
+    csrf_token: str = Form(None),
     db: Session = Depends(get_db),
+    _csrf: None = Depends(verify_csrf),
 ):
     """Create a new tracker."""
     try:
@@ -155,7 +262,13 @@ def tracker_detail(tracker_id: int, request: Request, db: Session = Depends(get_
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/tracker/{tracker_id}/refresh", response_class=HTMLResponse)
-def tracker_refresh(tracker_id: int, db: Session = Depends(get_db)):
+async def tracker_refresh(
+    request: Request,
+    tracker_id: int,
+    csrf_token: str = Form(None),
+    db: Session = Depends(get_db),
+    _csrf: None = Depends(verify_csrf),
+):
     """Refresh tracker price."""
     try:
         tracker_service = TrackerService(db)
@@ -190,7 +303,14 @@ def tracker_refresh(tracker_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/tracker/{tracker_id}/selector", response_class=HTMLResponse)
-def tracker_set_selector(tracker_id: int, selector: str = Form(""), db: Session = Depends(get_db)):
+async def tracker_set_selector(
+    request: Request,
+    tracker_id: int,
+    selector: str = Form(""),
+    csrf_token: str = Form(None),
+    db: Session = Depends(get_db),
+    _csrf: None = Depends(verify_csrf),
+):
     """Update tracker selector."""
     try:
         tracker_service = TrackerService(db)
@@ -236,7 +356,7 @@ def tracker_edit(tracker_id: int, request: Request, db: Session = Depends(get_db
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/tracker/{tracker_id}/edit", response_class=HTMLResponse)
-def tracker_update(
+async def tracker_update(
     tracker_id: int,
     request: Request,
     url: str = Form(...),
@@ -247,7 +367,9 @@ def tracker_update(
     profile_id: int = Form(0),
     is_active: bool = Form(False),
     poll_now: int = Form(0),
+    csrf_token: str = Form(None),
     db: Session = Depends(get_db),
+    _csrf: None = Depends(verify_csrf),
 ):
     """Update tracker."""
     try:
@@ -302,7 +424,13 @@ def tracker_update(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/tracker/{tracker_id}/delete", response_class=HTMLResponse)
-def tracker_delete(tracker_id: int, db: Session = Depends(get_db)):
+async def tracker_delete(
+    request: Request,
+    tracker_id: int,
+    csrf_token: str = Form(None),
+    db: Session = Depends(get_db),
+    _csrf: None = Depends(verify_csrf),
+):
     """Delete tracker."""
     try:
         tracker_service = TrackerService(db)
@@ -344,7 +472,7 @@ def profiles_new(request: Request):
     )
 
 @app.post("/admin/profiles/new", response_class=HTMLResponse)
-def profiles_create(
+async def profiles_create(
     request: Request,
     name: str = Form(...),
     email_from: str = Form(""),
@@ -355,7 +483,9 @@ def profiles_create(
     twilio_account_sid: str = Form(""),
     twilio_auth_token: str = Form(""),
     twilio_from_number: str = Form(""),
+    csrf_token: str = Form(None),
     db: Session = Depends(get_db),
+    _csrf: None = Depends(verify_csrf),
 ):
     """Create new notification profile."""
     try:
@@ -412,7 +542,7 @@ def profiles_edit(profile_id: int, request: Request, db: Session = Depends(get_d
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/admin/profiles/{profile_id}/edit", response_class=HTMLResponse)
-def profiles_update(
+async def profiles_update(
     profile_id: int,
     request: Request,
     name: str = Form(...),
@@ -424,7 +554,9 @@ def profiles_update(
     twilio_account_sid: str = Form(""),
     twilio_auth_token: str = Form(""),
     twilio_from_number: str = Form(""),
+    csrf_token: str = Form(None),
     db: Session = Depends(get_db),
+    _csrf: None = Depends(verify_csrf),
 ):
     """Update notification profile."""
     try:
@@ -466,7 +598,13 @@ def profiles_update(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/admin/profiles/{profile_id}/delete", response_class=HTMLResponse)
-def profiles_delete(profile_id: int, db: Session = Depends(get_db)):
+async def profiles_delete(
+    request: Request,
+    profile_id: int,
+    csrf_token: str = Form(None),
+    db: Session = Depends(get_db),
+    _csrf: None = Depends(verify_csrf),
+):
     """Delete notification profile."""
     try:
         profile_service = ProfileService(db)

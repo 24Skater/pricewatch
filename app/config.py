@@ -1,7 +1,9 @@
 from typing import Optional, List
-from pydantic import HttpUrl, field_validator
+from pydantic import HttpUrl, field_validator, model_validator
 from pydantic_settings import BaseSettings
+from cryptography.fernet import Fernet
 import os
+import logging
 
 
 class Settings(BaseSettings):
@@ -17,6 +19,7 @@ class Settings(BaseSettings):
     
     # Security
     secret_key: str = "your-secret-key-change-in-production"
+    encryption_key: Optional[str] = None  # Fernet key for encrypting sensitive data
     allowed_hosts: List[str] = ["localhost", "127.0.0.1"]
     cors_origins: List[str] = ["http://localhost:8000", "http://127.0.0.1:8000"]
     
@@ -60,9 +63,53 @@ class Settings(BaseSettings):
     @field_validator("secret_key")
     @classmethod
     def validate_secret_key(cls, v):
+        # Minimum 32 characters for development, validated further in model_validator for production
         if len(v) < 32:
             raise ValueError("Secret key must be at least 32 characters long")
         return v
+    
+    @field_validator("encryption_key")
+    @classmethod
+    def validate_encryption_key(cls, v):
+        """Validate encryption key format if provided."""
+        if v is not None:
+            try:
+                # Validate it's a valid Fernet key
+                Fernet(v.encode() if isinstance(v, str) else v)
+            except Exception:
+                raise ValueError("Invalid encryption key format. Must be a valid Fernet key.")
+        return v
+    
+    @model_validator(mode="after")
+    def check_production_requirements(self):
+        """Ensure required secrets are set in production."""
+        if self.environment == "production":
+            # Check encryption key
+            if not self.encryption_key:
+                raise ValueError(
+                    "ENCRYPTION_KEY must be set in production environment. "
+                    "Generate one with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+                )
+            
+            # Check secret key is not default
+            if self.secret_key == "your-secret-key-change-in-production":
+                raise ValueError("SECRET_KEY must be changed from default in production environment.")
+            
+            # Require longer secret key in production (64 characters)
+            if len(self.secret_key) < 64:
+                raise ValueError(
+                    "SECRET_KEY must be at least 64 characters in production. "
+                    "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+                )
+        
+        elif self.environment == "staging":
+            # Staging has similar requirements but allows shorter keys
+            if not self.encryption_key:
+                raise ValueError("ENCRYPTION_KEY must be set in staging environment.")
+            if self.secret_key == "your-secret-key-change-in-production":
+                raise ValueError("SECRET_KEY must be changed from default in staging environment.")
+        
+        return self
     
     model_config = {
         "env_file": ".env",
@@ -71,5 +118,22 @@ class Settings(BaseSettings):
     }
 
 
+def _get_settings() -> Settings:
+    """Get settings instance with development warnings."""
+    s = Settings()
+    if s.environment == "development":
+        logger = logging.getLogger("app.config")
+        logger.warning(
+            "⚠️  Running in DEVELOPMENT mode. "
+            "Do not use in production without setting ENVIRONMENT=production"
+        )
+        if not s.encryption_key:
+            logger.warning(
+                "⚠️  ENCRYPTION_KEY not set. Using auto-generated key for development. "
+                "This key will change on restart - set ENCRYPTION_KEY for persistence."
+            )
+    return s
+
+
 # Global settings instance
-settings = Settings()
+settings = _get_settings()
