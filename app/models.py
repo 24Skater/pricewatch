@@ -1,7 +1,16 @@
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Index, Text
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from .database import Base
+
+
+def utc_now() -> datetime:
+    """Return current UTC time as timezone-aware datetime.
+    
+    This replaces deprecated datetime.utcnow() with the recommended
+    timezone-aware alternative.
+    """
+    return datetime.now(timezone.utc)
 
 class NotificationProfile(Base):
     __tablename__ = "notification_profiles"
@@ -15,7 +24,7 @@ class NotificationProfile(Base):
     twilio_account_sid = Column(String(255), nullable=True)
     twilio_auth_token = Column(Text, nullable=True)  # Encrypted
     twilio_from_number = Column(String(20), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utc_now, index=True)
     trackers = relationship("Tracker", back_populates="profile")
 
 class Tracker(Base):
@@ -28,7 +37,7 @@ class Tracker(Base):
     contact = Column(String(255), nullable=False)
     currency = Column(String(3), default="USD", index=True)
     is_active = Column(Boolean, default=True, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utc_now, index=True)
     last_price = Column(Float, nullable=True, index=True)
     profile_id = Column(Integer, ForeignKey("notification_profiles.id"), nullable=True, index=True)
     profile = relationship("NotificationProfile", back_populates="trackers")
@@ -43,7 +52,7 @@ class PriceHistory(Base):
     __tablename__ = "price_history"
     id = Column(Integer, primary_key=True)
     tracker_id = Column(Integer, ForeignKey("trackers.id"), nullable=False, index=True)
-    checked_at = Column(DateTime, default=datetime.utcnow, index=True)
+    checked_at = Column(DateTime, default=utc_now, index=True)
     price = Column(Float, nullable=False, index=True)
     delta = Column(Float, nullable=True)
     

@@ -4,18 +4,16 @@ from typing import Optional, List
 from sqlalchemy.orm import Session
 from app.models import NotificationProfile
 from app.schemas import ProfileCreate
+from app.services.base import BaseService
 from app.exceptions import ValidationError, DatabaseError
-from app.logging_config import get_logger
 from app.security import input_validator, encryption_service
 
-logger = get_logger(__name__)
 
-
-class ProfileService:
+class ProfileService(BaseService[NotificationProfile]):
     """Service for notification profile business logic."""
     
     def __init__(self, db: Session):
-        self.db = db
+        super().__init__(db)
     
     def create_profile(self, profile_data: ProfileCreate) -> NotificationProfile:
         """Create a new notification profile."""
@@ -45,12 +43,12 @@ class ProfileService:
             self.db.commit()
             self.db.refresh(profile)
             
-            logger.info(f"Created profile {profile.id}: {profile.name}")
+            self.logger.info(f"Created profile {profile.id}: {profile.name}")
             return profile
             
         except Exception as e:
-            self.db.rollback()
-            logger.error(f"Failed to create profile: {e}")
+            self._rollback()
+            self.logger.error(f"Failed to create profile: {e}")
             raise DatabaseError(f"Failed to create profile: {e}")
     
     def get_profile(self, profile_id: int) -> Optional[NotificationProfile]:
@@ -98,12 +96,12 @@ class ProfileService:
             self.db.commit()
             self.db.refresh(profile)
             
-            logger.info(f"Updated profile {profile.id}")
+            self.logger.info(f"Updated profile {profile.id}")
             return profile
             
         except Exception as e:
-            self.db.rollback()
-            logger.error(f"Failed to update profile {profile_id}: {e}")
+            self._rollback()
+            self.logger.error(f"Failed to update profile {profile_id}: {e}")
             raise DatabaseError(f"Failed to update profile: {e}")
     
     def delete_profile(self, profile_id: int) -> bool:
@@ -116,12 +114,12 @@ class ProfileService:
             self.db.delete(profile)
             self.db.commit()
             
-            logger.info(f"Deleted profile {profile_id}")
+            self.logger.info(f"Deleted profile {profile_id}")
             return True
             
         except Exception as e:
-            self.db.rollback()
-            logger.error(f"Failed to delete profile {profile_id}: {e}")
+            self._rollback()
+            self.logger.error(f"Failed to delete profile {profile_id}: {e}")
             raise DatabaseError(f"Failed to delete profile: {e}")
     
     def get_decrypted_profile(self, profile_id: int) -> Optional[NotificationProfile]:

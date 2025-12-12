@@ -21,7 +21,7 @@
 | Phase | Name | Tasks | Status |
 |-------|------|-------|--------|
 | 1 | Security Hardening | 10 | ✅ Complete |
-| 2 | Code Quality & DRY | 8 | ⬜ Not Started |
+| 2 | Code Quality & DRY | 8 | 🔄 In Progress (5/8) |
 | 3 | Testing Improvements | 7 | ⬜ Not Started |
 | 4 | DevOps & Infrastructure | 8 | ⬜ Not Started |
 | 5 | Documentation | 6 | ⬜ Not Started |
@@ -209,88 +209,88 @@
 ## Task 2.1: Extract Notification Service
 **Files**: `app/services/notification_service.py` (new), `app/services/tracker_service.py`, `app/services/scheduler_service.py`
 
-- [ ] **2.1.1** Create new file `app/services/notification_service.py`
-- [ ] **2.1.2** Move `_send_price_notification()` logic to `NotificationService` class
-- [ ] **2.1.3** Add methods: `send_price_alert()`, `send_email()`, `send_sms()`
-- [ ] **2.1.4** Update `TrackerService` to use `NotificationService`
-- [ ] **2.1.5** Update `SchedulerService` to use `NotificationService`
-- [ ] **2.1.6** Remove duplicate notification methods from both services
+- [x] **2.1.1** Create new file `app/services/notification_service.py`
+- [x] **2.1.2** Move `_send_price_notification()` logic to `NotificationService` class
+- [x] **2.1.3** Add methods: `send_price_alert()`, `send_email()`, `send_sms()`
+- [x] **2.1.4** Update `TrackerService` to use `NotificationService`
+- [x] **2.1.5** Update `SchedulerService` to use `NotificationService`
+- [x] **2.1.6** Remove duplicate notification methods from both services
 
 **Acceptance Criteria**:
-- Single source of truth for notification logic
-- Both services delegate to `NotificationService`
+- ✅ Single source of truth for notification logic
+- ✅ Both services delegate to `NotificationService`
 
 ---
 
 ## Task 2.2: Improve Module Exports
 **Files**: `app/__init__.py`, `app/services/__init__.py`
 
-- [ ] **2.2.1** Update `app/__init__.py` with version and public exports:
+- [x] **2.2.1** Update `app/__init__.py` with version and public exports:
   ```python
   __version__ = "2.1.0"
   __all__ = ["app", "settings", "get_db"]
   ```
-- [ ] **2.2.2** Update `app/services/__init__.py` with service exports:
+- [x] **2.2.2** Update `app/services/__init__.py` with service exports:
   ```python
   __all__ = ["TrackerService", "ProfileService", "SchedulerService", "NotificationService"]
   ```
-- [ ] **2.2.3** Add `__all__` to `app/exceptions.py`
-- [ ] **2.2.4** Add `__all__` to `app/security.py`
+- [x] **2.2.3** Add `__all__` to `app/exceptions.py`
+- [x] **2.2.4** Add `__all__` to `app/security.py`
 
 **Acceptance Criteria**:
-- All modules have explicit `__all__` exports
-- `from app.services import TrackerService` works cleanly
+- ✅ All modules have explicit `__all__` exports
+- ✅ `from app.services import TrackerService` works cleanly
 
 ---
 
 ## Task 2.3: Add Type Hints to Scraper
 **File**: `app/scraper.py`
 
-- [ ] **2.3.1** Add type hints to all functions:
+- [x] **2.3.1** Add type hints to all functions:
   - `fetch_html(url: str) -> str`
   - `fetch_html_js(url: str) -> str`
   - `_text(el: Tag) -> str`
   - `_nearby_text(el: Tag, limit_nodes: int = 3) -> str`
   - `_candidate_score(el: Tag, price_val: float, raw_text: str) -> int`
   - `smart_find_price(soup: BeautifulSoup) -> Optional[Tuple[float, str]]`
-- [ ] **2.3.2** Add return type hints to all parse functions
-- [ ] **2.3.3** Add type alias: `PriceResult = Tuple[Optional[float], str, Optional[str]]`
-- [ ] **2.3.4** Add docstrings to all public functions
+- [x] **2.3.2** Add return type hints to all parse functions
+- [x] **2.3.3** Add type alias: `PriceResult = Tuple[Optional[float], str, Optional[str]]`
+- [x] **2.3.4** Add docstrings to all public functions
 
 **Acceptance Criteria**:
-- `mypy app/scraper.py` passes with no errors
-- All functions have docstrings
+- ✅ `mypy app/scraper.py` passes with no errors
+- ✅ All functions have docstrings
 
 ---
 
 ## Task 2.4: Fix Deprecated datetime.utcnow()
 **Files**: `app/models.py`, any file using `datetime.utcnow()`
 
-- [ ] **2.4.1** Add import: `from datetime import datetime, timezone`
-- [ ] **2.4.2** Replace all `datetime.utcnow` with `lambda: datetime.now(timezone.utc)`
-- [ ] **2.4.3** Update any code comparing datetimes to use timezone-aware comparisons
+- [x] **2.4.1** Add import: `from datetime import datetime, timezone`
+- [x] **2.4.2** Replace all `datetime.utcnow` with `lambda: datetime.now(timezone.utc)`
+- [x] **2.4.3** Update any code comparing datetimes to use timezone-aware comparisons
 
 **Acceptance Criteria**:
-- No deprecation warnings for datetime usage
-- All timestamps are timezone-aware UTC
+- ✅ No deprecation warnings for datetime usage
+- ✅ All timestamps are timezone-aware UTC
 
 ---
 
 ## Task 2.5: Create Base Service Class
 **File**: `app/services/base.py` (new)
 
-- [ ] **2.5.1** Create `BaseService` abstract class with:
+- [x] **2.5.1** Create `BaseService` abstract class with:
   - `__init__(self, db: Session)`
   - `_commit()` helper with error handling
   - `_rollback()` helper
   - Common logging setup
-- [ ] **2.5.2** Update `TrackerService` to inherit from `BaseService`
-- [ ] **2.5.3** Update `ProfileService` to inherit from `BaseService`
-- [ ] **2.5.4** Update `SchedulerService` to inherit from `BaseService`
+- [x] **2.5.2** Update `TrackerService` to inherit from `BaseService`
+- [x] **2.5.3** Update `ProfileService` to inherit from `BaseService`
+- [x] **2.5.4** Update `SchedulerService` to inherit from `BaseService`
 
 **Acceptance Criteria**:
-- Common database operations handled by base class
-- Reduced boilerplate in service classes
+- ✅ Common database operations handled by base class
+- ✅ Reduced boilerplate in service classes
 
 ---
 
@@ -1010,9 +1010,16 @@
 # 🔄 Status Updates
 
 ## Current Phase: 2 (Code Quality & DRY)
-## Current Task: 2.1 (Extract Notification Service)
+## Current Task: 2.6 (Consolidate Configuration Access)
 ## Last Updated: 2025-12-12
 ## Blockers: None
+
+### Phase 2 Progress: 🔄 (5/8 tasks)
+- ✅ Task 2.1: Extract Notification Service (6/6 subtasks complete)
+- ✅ Task 2.2: Improve Module Exports (4/4 subtasks complete)
+- ✅ Task 2.3: Add Type Hints to Scraper (4/4 subtasks complete)
+- ✅ Task 2.4: Fix Deprecated datetime.utcnow() (3/3 subtasks complete)
+- ✅ Task 2.5: Create Base Service Class (4/4 subtasks complete)
 
 ### Phase 1 Complete! ✅ (10/10 tasks)
 - ✅ Task 1.1: Fix Encryption Key Storage (5/5 subtasks complete)

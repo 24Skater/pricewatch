@@ -1,5 +1,16 @@
 """Custom exception classes for the application."""
 
+__all__ = [
+    "PricewatchException",
+    "ValidationError",
+    "SecurityError",
+    "ScrapingError",
+    "NotificationError",
+    "DatabaseError",
+    "ConfigurationError",
+    "RateLimitError",
+]
+
 
 class PricewatchException(Exception):
     """Base exception for Pricewatch application."""

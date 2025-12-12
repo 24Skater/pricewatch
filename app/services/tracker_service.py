@@ -5,19 +5,17 @@ from sqlalchemy.orm import Session
 from app.models import Tracker, PriceHistory, NotificationProfile
 from app.schemas import TrackerCreate, TrackerOut
 from app.scraper import get_price
-from app.alerts import send_email, send_sms
+from app.services.base import BaseService
+from app.services.notification_service import notification_service
 from app.exceptions import ValidationError, ScrapingError, DatabaseError
-from app.logging_config import get_logger
 from app.security import input_validator
 
-logger = get_logger(__name__)
 
-
-class TrackerService:
+class TrackerService(BaseService[Tracker]):
     """Service for tracker business logic."""
     
     def __init__(self, db: Session):
-        self.db = db
+        super().__init__(db)
     
     def create_tracker(self, tracker_data: TrackerCreate) -> Tracker:
         """Create a new tracker."""
@@ -59,7 +57,7 @@ class TrackerService:
                 if title and not tracker.name:
                     tracker.name = title[:200]
             except Exception as e:
-                logger.warning(f"Initial price fetch failed for {tracker.url}: {e}")
+                self.logger.warning(f"Initial price fetch failed for {tracker.url}: {e}")
             
             self.db.add(tracker)
             self.db.commit()
@@ -75,12 +73,12 @@ class TrackerService:
                 self.db.add(price_history)
                 self.db.commit()
             
-            logger.info(f"Created tracker {tracker.id} for {tracker.url}")
+            self.logger.info(f"Created tracker {tracker.id} for {tracker.url}")
             return tracker
             
         except Exception as e:
-            self.db.rollback()
-            logger.error(f"Failed to create tracker: {e}")
+            self._rollback()
+            self.logger.error(f"Failed to create tracker: {e}")
             raise DatabaseError(f"Failed to create tracker: {e}")
     
     def get_tracker(self, tracker_id: int) -> Optional[Tracker]:
@@ -131,12 +129,12 @@ class TrackerService:
             self.db.commit()
             self.db.refresh(tracker)
             
-            logger.info(f"Updated tracker {tracker.id}")
+            self.logger.info(f"Updated tracker {tracker.id}")
             return tracker
             
         except Exception as e:
-            self.db.rollback()
-            logger.error(f"Failed to update tracker {tracker_id}: {e}")
+            self._rollback()
+            self.logger.error(f"Failed to update tracker {tracker_id}: {e}")
             raise DatabaseError(f"Failed to update tracker: {e}")
     
     def delete_tracker(self, tracker_id: int) -> bool:
@@ -155,12 +153,12 @@ class TrackerService:
             self.db.delete(tracker)
             self.db.commit()
             
-            logger.info(f"Deleted tracker {tracker_id}")
+            self.logger.info(f"Deleted tracker {tracker_id}")
             return True
             
         except Exception as e:
-            self.db.rollback()
-            logger.error(f"Failed to delete tracker {tracker_id}: {e}")
+            self._rollback()
+            self.logger.error(f"Failed to delete tracker {tracker_id}: {e}")
             raise DatabaseError(f"Failed to delete tracker: {e}")
     
     def refresh_tracker_price(self, tracker_id: int) -> Tuple[Optional[float], Optional[str]]:
@@ -198,34 +196,13 @@ class TrackerService:
                 
                 # Send notification if price changed significantly
                 if delta is not None and abs(delta) > 1e-6:
-                    self._send_price_notification(tracker, price, delta)
+                    notification_service.send_price_alert(tracker, price, delta)
                 
-                logger.info(f"Updated price for tracker {tracker_id}: ${price}")
+                self.logger.info(f"Updated price for tracker {tracker_id}: ${price}")
             
             return price, currency
             
         except Exception as e:
-            logger.error(f"Failed to refresh price for tracker {tracker_id}: {e}")
+            self.logger.error(f"Failed to refresh price for tracker {tracker_id}: {e}")
             raise ScrapingError(f"Failed to refresh price: {e}")
     
-    def _send_price_notification(self, tracker: Tracker, price: float, delta: float) -> None:
-        """Send price change notification."""
-        try:
-            sign = "decreased" if delta < 0 else "increased"
-            subject = f"Price {sign}: {tracker.name or tracker.url}"
-            body = (
-                f"The price has {sign} by ${abs(delta):.2f}\n"
-                f"Current price: ${price:.2f}\n"
-                f"URL: {tracker.url}\n"
-            )
-            
-            if tracker.alert_method == "email":
-                send_email(tracker.contact, subject, body, profile=tracker.profile)
-            else:
-                send_sms(tracker.contact, subject + "\n" + body, profile=tracker.profile)
-            
-            logger.info(f"Sent {tracker.alert_method} notification for tracker {tracker.id}")
-            
-        except Exception as e:
-            logger.error(f"Failed to send notification for tracker {tracker.id}: {e}")
-            # Don't raise exception for notification failures
