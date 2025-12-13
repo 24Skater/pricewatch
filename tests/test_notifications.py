@@ -140,15 +140,17 @@ class TestSendEmail:
     """Tests for send_email() function."""
     
     @patch("app.alerts.smtplib.SMTP")
-    @patch("app.alerts.settings")
-    def test_send_email_success(self, mock_settings, mock_smtp_class):
+    @patch("app.alerts._smtp_config")
+    def test_send_email_success(self, mock_smtp_config, mock_smtp_class):
         """Test successful email sending."""
-        # Configure mock settings
-        mock_settings.smtp_host = "smtp.test.com"
-        mock_settings.smtp_port = 587
-        mock_settings.smtp_user = "test_user"
-        mock_settings.smtp_pass = "test_pass"
-        mock_settings.from_email = "from@test.com"
+        # Configure mock SMTP config
+        mock_smtp_config.return_value = {
+            "smtp_host": "smtp.test.com",
+            "smtp_port": 587,
+            "smtp_user": "test_user",
+            "smtp_pass": "test_pass",
+            "email_from": "from@test.com"
+        }
         
         # Configure mock SMTP
         mock_smtp = MagicMock()
@@ -176,14 +178,17 @@ class TestSendEmail:
         # No assertion needed - just verify no exception
     
     @patch("app.alerts.smtplib.SMTP")
-    @patch("app.alerts.settings")
-    def test_send_email_raises_on_error(self, mock_settings, mock_smtp_class):
+    @patch("app.alerts._smtp_config")
+    def test_send_email_raises_on_error(self, mock_smtp_config, mock_smtp_class):
         """Test email raises exception on SMTP error."""
-        mock_settings.smtp_host = "smtp.test.com"
-        mock_settings.smtp_port = 587
-        mock_settings.smtp_user = "test_user"
-        mock_settings.smtp_pass = "test_pass"
-        mock_settings.from_email = "from@test.com"
+        # Configure mock SMTP config
+        mock_smtp_config.return_value = {
+            "smtp_host": "smtp.test.com",
+            "smtp_port": 587,
+            "smtp_user": "test_user",
+            "smtp_pass": "test_pass",
+            "email_from": "from@test.com"
+        }
         
         mock_smtp_class.side_effect = Exception("SMTP connection failed")
         
@@ -217,12 +222,15 @@ class TestSendSms:
     """Tests for send_sms() function."""
     
     @patch("app.alerts.Client")
-    @patch("app.alerts.settings")
-    def test_send_sms_success(self, mock_settings, mock_client_class):
+    @patch("app.alerts._twilio_config")
+    def test_send_sms_success(self, mock_twilio_config, mock_client_class):
         """Test successful SMS sending."""
-        mock_settings.twilio_account_sid = "AC_test_sid"
-        mock_settings.twilio_auth_token = "test_token"
-        mock_settings.twilio_from_number = "+15551112222"
+        # Configure mock Twilio config
+        mock_twilio_config.return_value = {
+            "twilio_account_sid": "AC_test_sid",
+            "twilio_auth_token": "test_token",
+            "twilio_from_number": "+15551112222"
+        }
         
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
@@ -247,12 +255,15 @@ class TestSendSms:
         send_sms("+15559998888", "Test SMS Body")
     
     @patch("app.alerts.Client")
-    @patch("app.alerts.settings")
-    def test_send_sms_raises_on_error(self, mock_settings, mock_client_class):
+    @patch("app.alerts._twilio_config")
+    def test_send_sms_raises_on_error(self, mock_twilio_config, mock_client_class):
         """Test SMS raises exception on Twilio error."""
-        mock_settings.twilio_account_sid = "AC_test_sid"
-        mock_settings.twilio_auth_token = "test_token"
-        mock_settings.twilio_from_number = "+15551112222"
+        # Configure mock Twilio config
+        mock_twilio_config.return_value = {
+            "twilio_account_sid": "AC_test_sid",
+            "twilio_auth_token": "test_token",
+            "twilio_from_number": "+15551112222"
+        }
         
         mock_client_class.side_effect = Exception("Twilio error")
         
