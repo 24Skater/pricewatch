@@ -66,12 +66,27 @@ def client():
     
     The test client can be used to make HTTP requests to the application.
     """
+    from app.config import settings
+    from app.main import verify_csrf
+    
+    # Override allowed_hosts for testing
+    original_hosts = settings.allowed_hosts
+    settings.allowed_hosts = ["localhost", "127.0.0.1", "testserver", "*"]
+    
+    # Override CSRF verification for testing (bypass CSRF in tests)
+    async def bypass_csrf():
+        return None
+    
     Base.metadata.create_all(bind=engine)
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as test_client:
+    app.dependency_overrides[verify_csrf] = bypass_csrf
+    # TestClient needs to use a host that's in allowed_hosts
+    with TestClient(app, base_url="http://localhost") as test_client:
         yield test_client
     app.dependency_overrides.clear()
     Base.metadata.drop_all(bind=engine)
+    # Restore original hosts
+    settings.allowed_hosts = original_hosts
 
 
 # =============================================================================

@@ -374,7 +374,7 @@ def tracker_detail(tracker_id: int, request: Request, db: Session = Depends(get_
         ).order_by(PriceHistory.checked_at.desc()).all()
         
         # Generate ETag based on tracker and latest price check
-        etag_data = f"{tracker_id}-{tracker.updated_at.isoformat() if tracker.updated_at else ''}"
+        etag_data = f"{tracker_id}-{tracker.created_at.isoformat() if tracker.created_at else ''}"
         if history:
             etag_data += f"-{history[0].checked_at.isoformat()}"
         etag = hashlib.md5(etag_data.encode()).hexdigest()

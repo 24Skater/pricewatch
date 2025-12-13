@@ -464,9 +464,9 @@ class TestCSRFProtection:
     
     def test_csrf_token_generation(self):
         """Test CSRF token is generated correctly."""
-        from app.csrf import CSRFManager
+        from app.csrf import CSRFTokenManager
         
-        manager = CSRFManager()
+        manager = CSRFTokenManager()
         
         # Create mock request with session
         mock_request = MagicMock()
@@ -476,13 +476,14 @@ class TestCSRFProtection:
         
         assert token is not None
         assert len(token) > 0
-        assert "csrf_token" in mock_request.session
+        # Token is stored in manager's internal dictionary, not in session
+        assert token in manager._tokens
     
     def test_csrf_token_validation(self):
         """Test CSRF token validation."""
-        from app.csrf import CSRFManager
+        from app.csrf import CSRFTokenManager
         
-        manager = CSRFManager()
+        manager = CSRFTokenManager()
         
         # Create mock request with session
         mock_request = MagicMock()
@@ -497,9 +498,9 @@ class TestCSRFProtection:
     
     def test_csrf_token_invalid(self):
         """Test invalid CSRF token is rejected."""
-        from app.csrf import CSRFManager
+        from app.csrf import CSRFTokenManager
         
-        manager = CSRFManager()
+        manager = CSRFTokenManager()
         
         mock_request = MagicMock()
         mock_request.session = {"csrf_token": "valid_token"}
@@ -510,9 +511,9 @@ class TestCSRFProtection:
     
     def test_csrf_token_missing(self):
         """Test missing CSRF token is rejected."""
-        from app.csrf import CSRFManager
+        from app.csrf import CSRFTokenManager
         
-        manager = CSRFManager()
+        manager = CSRFTokenManager()
         
         mock_request = MagicMock()
         mock_request.session = {"csrf_token": "valid_token"}
