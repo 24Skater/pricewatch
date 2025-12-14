@@ -1,156 +1,130 @@
-# Pricewatch v2.1 - Enterprise Price Tracking Application
+# Pricewatch
 
-[![CI](https://github.com/pricewatch/pricewatch/workflows/CI/badge.svg)](https://github.com/pricewatch/pricewatch/actions)
-[![Coverage](https://img.shields.io/badge/coverage-75%25-brightgreen)](https://github.com/pricewatch/pricewatch)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+> **Enterprise-grade price tracking made simple** — Monitor product prices across the web and get instant notifications when prices drop.
+
+[![CI](https://img.shields.io/github/actions/workflow/status/pricewatch/pricewatch/ci.yml?branch=main&label=CI&logo=github)](https://github.com/pricewatch/pricewatch/actions)
+[![Coverage](https://img.shields.io/badge/coverage-80.67%25-brightgreen?logo=codecov)](https://github.com/pricewatch/pricewatch)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg?logo=opensourceinitiative)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg?logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.111+-009688.svg?logo=fastapi)](https://fastapi.tiangolo.com/)
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
-**Pricewatch** is a comprehensive price tracking application that monitors product prices across the web and sends notifications when prices change. Built with FastAPI and featuring enterprise-grade security, monitoring, and scalability features.
+---
 
-## 📑 Table of Contents
+## ✨ Features
 
-- [What is Pricewatch?](#-what-is-pricewatch)
-- [Quick Start](#-quick-start)
-- [How to Use](#-how-to-use)
-- [Configuration](#-configuration)
-- [Architecture](#-architecture)
-- [Testing](#-testing)
-- [Deployment](#-deployment)
-- [Monitoring](#-monitoring)
-- [Security](#-security)
-- [Built With](#-built-with)
-- [Contributing](#-contributing)
-- [License](#-license)
-- [Support](#-support)
-- [Acknowledgments](#-acknowledgments)
-
-## 🎯 What is Pricewatch?
-
-Pricewatch is a web application that helps you:
-
-- **Track Product Prices**: Monitor prices from any e-commerce website
-- **Get Price Alerts**: Receive email or SMS notifications when prices drop
-- **Manage Multiple Trackers**: Track hundreds of products simultaneously
-- **View Price History**: See price trends and changes over time
-- **Custom Notifications**: Set up personalized notification profiles
-
-### Key Features
-
-- 🔒 **Enterprise Security**: Encryption, input validation, rate limiting
-- 🏗️ **Modern Architecture**: Service layer, proper separation of concerns
-- 📊 **Monitoring & Logging**: Health checks, metrics, structured logging
-- 🗄️ **Database Optimization**: Strategic indexing, migrations
-- 🧪 **Comprehensive Testing**: Unit, integration, and security tests
-- 🚀 **Production Ready**: Docker support, environment configuration
+- 🔍 **Smart Price Tracking** — Monitor prices from any e-commerce website with flexible CSS selectors
+- 📧 **Multi-Channel Notifications** — Get alerts via email (SMTP) or SMS (Twilio) when prices change
+- 📊 **Price History** — Track price trends and changes over time with detailed history
+- 🔒 **Enterprise Security** — Encryption, CSRF protection, rate limiting, and comprehensive input validation
+- 🚀 **Production Ready** — Docker support, health checks, Prometheus metrics, and structured logging
+- 🧪 **Well Tested** — 80.67% test coverage with comprehensive unit, integration, and security tests
+- ⚡ **High Performance** — Async HTTP client, database connection pooling, and optimized queries
+- 📱 **Modern Web UI** — Clean, responsive interface for managing trackers and profiles
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- **Python 3.10+** - Download from [python.org](https://python.org)
-- **Git** - Download from [git-scm.com](https://git-scm.com)
+- **Python 3.10+** ([Download](https://www.python.org/downloads/))
+- **Git** ([Download](https://git-scm.com/downloads))
+- **Docker** (optional, for containerized deployment)
 
 ### Installation
 
-1. **Clone the Repository**
+1. **Clone the repository**
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/pricewatch/pricewatch.git
    cd pricewatch
    ```
 
-2. **Create Virtual Environment**
+2. **Create and activate a virtual environment**
    ```bash
    # Windows
    python -m venv .venv
    .venv\Scripts\activate
-   
+
    # macOS/Linux
    python -m venv .venv
    source .venv/bin/activate
    ```
 
-3. **Install Dependencies**
+3. **Install dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Configure Environment**
+4. **Configure environment**
    ```bash
    # Copy example configuration
    cp .env.example .env
-   
-   # Edit .env file with your settings
-   # Set SECRET_KEY=your-super-secure-secret-key-minimum-32-characters
+
+   # Edit .env and set at minimum:
+   # SECRET_KEY=your-super-secure-secret-key-minimum-32-characters
+   # DATABASE_URL=sqlite:///pricewatch.db
    ```
 
-5. **Setup Database**
+5. **Initialize database**
    ```bash
-   # Initialize migrations
    alembic upgrade head
    ```
 
-6. **Start Application**
+6. **Start the application**
    ```bash
    uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
    ```
 
-7. **Test Installation**
-   ```bash
-   python test_setup.py
+7. **Open your browser**
+   ```
+   http://localhost:8000
    ```
 
-### 🎉 You're Ready!
+🎉 **You're all set!** Start tracking prices by adding your first tracker.
 
-Visit http://localhost:8000 to start using Pricewatch!
+## 📖 Usage
 
-## 📖 How to Use
+### Creating a Price Tracker
 
-### 1. **Create Your First Tracker**
+1. Navigate to the home page at `http://localhost:8000`
+2. Click **"Add Tracker"**
+3. Enter the product URL (e.g., from Amazon, eBay, or any e-commerce site)
+4. Optionally specify a CSS selector for the price element
+5. Choose your notification method (Email or SMS)
+6. Enter your contact information
+7. Click **"Create Tracker"**
 
-1. Go to http://localhost:8000
-2. Click "Add Tracker"
-3. Enter a product URL (e.g., from Amazon, eBay, etc.)
-4. Choose notification method (Email or SMS)
-5. Enter your contact information
-6. Click "Create Tracker"
-
-### 2. **Set Up Notifications**
+### Setting Up Notifications
 
 #### Email Notifications
-1. Go to **Admin** → **Profiles**
-2. Click "Create New Profile"
-3. Enter your SMTP settings:
-   - SMTP Host (e.g., smtp.gmail.com)
-   - SMTP Port (usually 587)
+
+1. Go to **Admin → Profiles**
+2. Click **"Create New Profile"**
+3. Configure SMTP settings:
+   - SMTP Host (e.g., `smtp.gmail.com`)
+   - SMTP Port (usually `587` for TLS)
    - Username and Password
    - From Email address
 
 #### SMS Notifications
-1. Sign up for [Twilio](https://twilio.com)
+
+1. Sign up for [Twilio](https://www.twilio.com/)
 2. Get your Account SID, Auth Token, and Phone Number
-3. Create a notification profile with Twilio settings
+3. Create a notification profile with your Twilio credentials
 
-### 3. **Manage Trackers**
+### Managing Trackers
 
-- **View All Trackers**: Main page shows all your trackers
-- **Edit Tracker**: Click on any tracker to edit settings
-- **Delete Tracker**: Remove trackers you no longer need
-- **Refresh Price**: Manually check for price updates
-- **View History**: See price changes over time
+- **View All Trackers** — Main dashboard shows all active trackers
+- **Edit Tracker** — Click any tracker to modify settings
+- **Delete Tracker** — Remove trackers you no longer need
+- **Manual Refresh** — Check for price updates on demand
+- **Price History** — View detailed price change history
 
-### 4. **Monitor Your Application**
-
-- **Health Check**: http://localhost:8000/health
-- **Detailed Health**: http://localhost:8000/health/detailed
-- **API Documentation**: http://localhost:8000/docs
-- **Application Logs**: Check `app.log` file
-
-## 🔧 Configuration
+## ⚙️ Configuration
 
 ### Environment Variables
 
-Create a `.env` file with these settings:
+Create a `.env` file in the project root with the following variables:
 
 ```env
 # Required
@@ -165,36 +139,44 @@ LOG_LEVEL=INFO
 # Security
 RATE_LIMIT_PER_MINUTE=60
 RATE_LIMIT_BURST=10
+ALLOWED_HOSTS=localhost,127.0.0.1
 
 # Scraping
 REQUEST_TIMEOUT=30
 MAX_RETRIES=3
-USE_JS_FALLBACK=false
 SCHEDULE_MINUTES=30
+USE_ASYNC_CLIENT=false
 
-# SMTP (Optional)
+# SMTP (Optional - for email notifications)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASS=your-app-password
 FROM_EMAIL=your-email@gmail.com
 
-# Twilio (Optional)
+# Twilio (Optional - for SMS notifications)
 TWILIO_ACCOUNT_SID=your-twilio-sid
 TWILIO_AUTH_TOKEN=your-twilio-token
 TWILIO_FROM_NUMBER=your-twilio-number
+
+# Database (Optional - for PostgreSQL/MySQL)
+DB_POOL_SIZE=5
+DB_MAX_OVERFLOW=10
+DB_POOL_TIMEOUT=30
 ```
 
-### Advanced Configuration
+### Production Configuration
 
-- **Database**: Change `DATABASE_URL` for PostgreSQL/MySQL
-- **Logging**: Set `LOG_FORMAT=json` for structured logs
-- **Monitoring**: Enable `ENABLE_METRICS=true` for Prometheus
-- **Security**: Configure `ALLOWED_HOSTS` for production
+For production deployments:
+
+- Use **PostgreSQL** or **MySQL** instead of SQLite
+- Set `ENVIRONMENT=production` and `DEBUG=false`
+- Configure proper `ALLOWED_HOSTS`
+- Use a strong, randomly generated `SECRET_KEY`
+- Enable HTTPS with a reverse proxy (nginx)
+- Set up proper logging and monitoring
 
 ## 🏗️ Architecture
-
-### System Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -237,167 +219,196 @@ TWILIO_FROM_NUMBER=your-twilio-number
 └───────────────────────────────────────────────────────────┘
 ```
 
-### Service Layer
-- **TrackerService**: Business logic for price trackers
-- **ProfileService**: Notification profile management
-- **SchedulerService**: Background price checking
-- **NotificationService**: Centralized notification handling
+### Key Components
 
-### Security Features
-- **Encryption**: Sensitive data encrypted at rest using Fernet
-- **Validation**: Comprehensive input validation with Pydantic
-- **Rate Limiting**: Protection against abuse with automatic cleanup
-- **XSS Prevention**: Input sanitization and output encoding
-- **CSRF Protection**: Token-based CSRF protection on all forms
-- **Security Headers**: Comprehensive security headers middleware
-- **SSRF Protection**: URL validation preventing private IP access
-- **Request Tracking**: Full request lifecycle tracking with UUIDs
-
-### Database
-- **SQLAlchemy ORM**: Object-relational mapping
-- **Alembic Migrations**: Database versioning
-- **Strategic Indexing**: Query performance optimization
-- **Connection Pooling**: Efficient resource usage (PostgreSQL)
+- **Service Layer** — Business logic separation with `TrackerService`, `ProfileService`, `SchedulerService`, and `NotificationService`
+- **Security Layer** — Encryption, validation, rate limiting, CSRF protection, and security headers
+- **Database Layer** — SQLAlchemy ORM with Alembic migrations and connection pooling
+- **Scraping Engine** — Flexible price extraction with CSS selectors and async HTTP support
 
 ## 🧪 Testing
 
 ### Run Tests
+
 ```bash
 # Run all tests
-python -m pytest tests/ -v
+pytest tests/ -v
+
+# Run with coverage
+pytest tests/ --cov=app --cov-report=html
 
 # Run specific test categories
-python -m pytest tests/test_security.py -v
-python -m pytest tests/test_api.py -v
-python -m pytest tests/test_services.py -v
-python -m pytest tests/test_scraper.py -v
-python -m pytest tests/test_notifications.py -v
-python -m pytest tests/test_integration.py -v
-python -m pytest tests/test_monitoring.py -v
+pytest tests/test_security.py -v      # Security tests
+pytest tests/test_api.py -v           # API endpoint tests
+pytest tests/test_services.py -v      # Service layer tests
+pytest tests/test_scraper.py -v       # Scraper tests
+pytest tests/test_integration.py -v   # Integration tests
 ```
 
-### Test Coverage
+### Coverage
+
+- **Current Coverage**: 80.67%
+- **Minimum Required**: 75%
+- **HTML Report**: Generated in `htmlcov/` directory
+
 ```bash
-# Run with coverage report
-python -m pytest tests/ --cov=app --cov-report=html
-
-# Run with coverage and fail if below 75%
-python -m pytest tests/ --cov=app --cov-fail-under=75
-
 # Generate coverage report
-python -m pytest tests/ --cov=app --cov-report=term-missing
+pytest tests/ --cov=app --cov-report=term-missing --cov-fail-under=75
 ```
 
-### Coverage Requirements
-- **Minimum coverage**: 75%
-- **Coverage configuration**: See `.coveragerc`
-- **HTML report**: Generated in `htmlcov/` directory
-- **CI enforcement**: Coverage check runs on every PR
+## 🐳 Docker Deployment
 
-## 🚀 Deployment
+### Quick Start with Docker
 
-### Docker Deployment
 ```bash
-# Build image
-docker build -t pricewatch .
+# Build the image
+docker build -t pricewatch:latest .
 
-# Run container
-docker run -p 8000:8000 --env-file .env pricewatch
+# Run the container
+docker run -p 8000:8000 --env-file .env pricewatch:latest
 ```
 
-### Production Considerations
-- Set secure `SECRET_KEY`
-- Use production database (PostgreSQL/MySQL)
-- Configure proper logging
-- Set up monitoring and alerting
-- Use reverse proxy (nginx)
-- Enable HTTPS
+### Docker Compose
 
-## 📊 Monitoring
+```bash
+# Development
+docker-compose up -d
 
-### Health Checks
-- **Basic**: http://localhost:8000/health
-- **Detailed**: http://localhost:8000/health/detailed
-- **Metrics**: http://localhost:8000/metrics
+# Production
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+The Docker setup includes:
+- Multi-stage builds for optimized image size
+- Non-root user for security
+- Health checks
+- Resource limits
+- Persistent volumes for database
+
+## 📊 Monitoring & Health Checks
+
+### Endpoints
+
+- **Basic Health**: `http://localhost:8000/health`
+- **Detailed Health**: `http://localhost:8000/health/detailed`
+- **Prometheus Metrics**: `http://localhost:8000/metrics`
+- **API Documentation**: `http://localhost:8000/docs`
 
 ### Logging
-- **Structured Logs**: JSON format in `app.log`
-- **Log Levels**: DEBUG, INFO, WARNING, ERROR
-- **Contextual Information**: Request IDs, user context
 
-## 🔒 Security
+Pricewatch uses structured JSON logging with:
+- Request ID tracking for full request lifecycle
+- Configurable log levels (DEBUG, INFO, WARNING, ERROR)
+- Sensitive data masking (passwords, tokens automatically redacted)
+- Contextual information (user, request, error details)
 
-### Data Protection
-- **Encryption at Rest**: Sensitive data encrypted
-- **Input Validation**: Comprehensive validation
-- **Rate Limiting**: Protection against abuse
-- **XSS Prevention**: Input sanitization
+## 🔒 Security Features
 
-### Best Practices
-- Use strong, unique SECRET_KEY
-- Configure proper CORS settings
-- Set up firewall rules
-- Regular security updates
-- Monitor access logs
+- **🔐 Encryption at Rest** — Sensitive data encrypted using Fernet (Fernet symmetric encryption)
+- **🛡️ CSRF Protection** — Token-based protection on all forms
+- **🚦 Rate Limiting** — IP-based rate limiting with automatic cleanup
+- **✅ Input Validation** — Comprehensive validation with Pydantic schemas
+- **🔍 SSRF Protection** — URL validation preventing private IP access
+- **📋 Security Headers** — X-Content-Type-Options, X-Frame-Options, CSP, and more
+- **🔑 Request Tracking** — Unique request IDs for full observability
+
+## 🛠️ Tech Stack
+
+| Category | Technology |
+|----------|-----------|
+| **Framework** | [FastAPI](https://fastapi.tiangolo.com/) |
+| **Database** | [SQLAlchemy](https://www.sqlalchemy.org/) + [Alembic](https://alembic.sqlalchemy.org/) |
+| **Validation** | [Pydantic](https://docs.pydantic.dev/) |
+| **Scraping** | [BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/) + [httpx](https://www.python-httpx.org/) |
+| **Templates** | [Jinja2](https://jinja.palletsprojects.com/) |
+| **Security** | [Cryptography](https://cryptography.io/) |
+| **Testing** | [Pytest](https://pytest.org/) |
+| **Linting** | [Ruff](https://github.com/astral-sh/ruff) |
+| **Type Checking** | [MyPy](https://mypy.readthedocs.io/) |
+| **Monitoring** | [Prometheus](https://prometheus.io/) |
+
+## 📁 Project Structure
+
+```
+pricewatch/
+├── app/                    # Main application code
+│   ├── services/          # Business logic layer
+│   ├── static/            # CSS and static assets
+│   └── templates/         # HTML templates
+├── docs/                  # Documentation
+│   ├── CHANGELOG.md
+│   ├── CONTRIBUTING.md
+│   ├── SECURITY.md
+│   └── ...
+├── tests/                 # Test suite
+├── migrations/            # Database migrations
+├── docker-compose.yml     # Docker Compose config
+├── Dockerfile             # Docker image definition
+├── requirements.txt       # Python dependencies
+├── pyproject.toml         # Project configuration
+└── README.md             # This file
+```
 
 ## 🤝 Contributing
 
 We welcome contributions! Please see our [Contributing Guide](docs/CONTRIBUTING.md) for details.
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Add tests for new features
-5. Ensure all tests pass (`pytest tests/`)
-6. Run pre-commit hooks (`pre-commit run --all-files`)
-7. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-8. Push to the branch (`git push origin feature/amazing-feature`)
-9. Open a Pull Request
+1. **Fork the repository**
+2. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
+3. **Make your changes**
+4. **Add tests** for new features
+5. **Ensure all tests pass** (`pytest tests/`)
+6. **Run pre-commit hooks** (`pre-commit run --all-files`)
+7. **Commit your changes** (`git commit -m 'feat: add amazing feature'`)
+8. **Push to the branch** (`git push origin feature/amazing-feature`)
+9. **Open a Pull Request**
 
 Please read our [Code of Conduct](docs/CODE_OF_CONDUCT.md) before contributing.
 
-## 🛠️ Built With
-
-- **[FastAPI](https://fastapi.tiangolo.com/)** - Modern, fast web framework for building APIs
-- **[SQLAlchemy](https://www.sqlalchemy.org/)** - SQL toolkit and ORM
-- **[Alembic](https://alembic.sqlalchemy.org/)** - Database migration tool
-- **[BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/)** - HTML parsing and scraping
-- **[Pydantic](https://docs.pydantic.dev/)** - Data validation using Python type annotations
-- **[Jinja2](https://jinja.palletsprojects.com/)** - Template engine
-- **[Cryptography](https://cryptography.io/)** - Encryption and security
-- **[Ruff](https://github.com/astral-sh/ruff)** - Fast Python linter and formatter
-- **[Pytest](https://pytest.org/)** - Testing framework
-- **[Docker](https://www.docker.com/)** - Containerization
-
 ## 📝 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
-
-### Troubleshooting
-- Check application logs in `app.log`
-- Verify environment configuration
-- Run health checks
-- Check database connectivity
+## 🆘 Support & Troubleshooting
 
 ### Common Issues
-- **Import Errors**: Ensure virtual environment is activated
-- **Database Errors**: Run `alembic upgrade head`
-- **Port Conflicts**: Use different port with `--port 8001`
-- **Permission Errors**: Check file permissions
+
+- **Import Errors** → Ensure virtual environment is activated
+- **Database Errors** → Run `alembic upgrade head`
+- **Port Conflicts** → Use different port: `--port 8001`
+- **Permission Errors** → Check file permissions
 
 ### Getting Help
-- Check the [IMPROVEMENT_PLAN.md](docs/IMPROVEMENT_PLAN.md) file
-- Review the [CHANGELOG.md](docs/CHANGELOG.md)
-- Run `python test_setup.py` for diagnostics
+
+- 📖 Check the [Documentation](docs/)
+- 📋 Review the [Changelog](docs/CHANGELOG.md)
+- 🔒 Read the [Security Policy](docs/SECURITY.md)
+- 🐛 [Open an Issue](https://github.com/pricewatch/pricewatch/issues)
+
+## 🗺️ Roadmap
+
+- [ ] OAuth2 authentication
+- [ ] API key management
+- [ ] Redis caching layer
+- [ ] Webhook notifications
+- [ ] Multi-tenant support
+- [ ] Price prediction algorithms
+- [ ] Grafana dashboard integration
+
+See [docs/IMPROVEMENT_PLAN.md](docs/IMPROVEMENT_PLAN.md) for detailed roadmap.
 
 ## 🙏 Acknowledgments
 
-- **Contributor Covenant** - For the Code of Conduct template
-- **FastAPI Community** - For excellent documentation and support
-- **All Contributors** - Thank you to everyone who has contributed to Pricewatch!
+- **FastAPI Community** — For excellent documentation and support
+- **Contributor Covenant** — For the Code of Conduct template
+- **All Contributors** — Thank you to everyone who has contributed to Pricewatch!
 
 ---
 
-**Pricewatch v2.1** - Enterprise-grade price tracking made simple! 🚀
+<div align="center">
+
+**Made with ❤️ by the Pricewatch Team**
+
+[⭐ Star us on GitHub](https://github.com/pricewatch/pricewatch) • [📖 Documentation](docs/) • [🐛 Report Bug](https://github.com/pricewatch/pricewatch/issues) • [💡 Request Feature](https://github.com/pricewatch/pricewatch/issues)
+
+</div>
