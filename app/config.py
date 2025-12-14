@@ -1,9 +1,11 @@
-from typing import Optional, List
+from typing import Optional, List, Union, Any, Dict
 from pydantic import HttpUrl, field_validator, model_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings.sources import DotEnvSettingsSource, EnvSettingsSource
 from cryptography.fernet import Fernet
 import os
 import logging
+import json
 
 
 class Settings(BaseSettings):
@@ -77,6 +79,9 @@ class Settings(BaseSettings):
     @classmethod
     def validate_encryption_key(cls, v):
         """Validate encryption key format if provided."""
+        # Treat empty strings as None
+        if v == "":
+            return None
         if v is not None:
             try:
                 # Validate it's a valid Fernet key
@@ -84,6 +89,38 @@ class Settings(BaseSettings):
             except Exception:
                 raise ValueError("Invalid encryption key format. Must be a valid Fernet key.")
         return v
+    
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls,
+        init_settings,
+        env_settings,
+        dotenv_settings,
+        file_secret_settings,
+    ):
+        """Customize settings sources to handle comma-separated list fields."""
+        # Wrap the dotenv settings source to handle comma-separated strings
+        class CommaSeparatedListSource(DotEnvSettingsSource):
+            def prepare_field_value(self, field_name: str, field, field_value: Any, value_is_complex: bool) -> Any:
+                """Override to handle comma-separated strings for list fields."""
+                # Check if this is a list field that might be comma-separated
+                if field_name in ["allowed_hosts", "cors_origins"] and isinstance(field_value, str):
+                    # Try JSON first
+                    try:
+                        return json.loads(field_value)
+                    except (json.JSONDecodeError, ValueError):
+                        # Fall back to comma-separated string
+                        return [item.strip() for item in field_value.split(",") if item.strip()]
+                # For other fields, use default behavior
+                return super().prepare_field_value(field_name, field, field_value, value_is_complex)
+        
+        return (
+            init_settings,
+            env_settings,
+            CommaSeparatedListSource(settings_cls),
+            file_secret_settings,
+        )
     
     @model_validator(mode="after")
     def check_production_requirements(self):
@@ -116,11 +153,11 @@ class Settings(BaseSettings):
         
         return self
     
-    model_config = {
-        "env_file": ".env",
-        "env_file_encoding": "utf-8",
-        "case_sensitive": False
-    }
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+    )
 
 
 def _get_settings() -> Settings:
