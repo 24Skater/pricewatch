@@ -92,7 +92,7 @@ class InputValidator:
         'localhost.localdomain',
         'local',
         '127.0.0.1',
-        '0.0.0.0',
+        '0.0.0.0',  # nosec B104 - This is for SSRF protection checking, not binding
         '::1',
         '[::1]',
     ]

@@ -14,7 +14,7 @@ twilio>=9.3,<10
 email-validator>=2.2,<3
 python-multipart>=0.0.20,<0.1
 # Security and encryption
-cryptography>=41.0,<42
+cryptography>=42.0.4,<47
 # Database migrations
 alembic>=1.12,<2
 # Rate limiting

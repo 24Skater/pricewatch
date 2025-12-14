@@ -55,7 +55,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Pricewatch",
     description="A price tracking application with notifications",
-    version="2.0.0",
+    version="2.1.0",
     lifespan=lifespan
 )
 
@@ -377,7 +377,8 @@ def tracker_detail(tracker_id: int, request: Request, db: Session = Depends(get_
         etag_data = f"{tracker_id}-{tracker.created_at.isoformat() if tracker.created_at else ''}"
         if history:
             etag_data += f"-{history[0].checked_at.isoformat()}"
-        etag = hashlib.md5(etag_data.encode()).hexdigest()
+        # MD5 is acceptable for ETag generation (not security-sensitive)
+        etag = hashlib.md5(etag_data.encode()).hexdigest()  # nosec B324
         
         # Check if client has matching ETag
         if_none_match = request.headers.get("If-None-Match")

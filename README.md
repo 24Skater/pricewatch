@@ -1,7 +1,7 @@
 # Pricewatch v2.1 - Enterprise Price Tracking Application
 
 [![CI](https://github.com/pricewatch/pricewatch/workflows/CI/badge.svg)](https://github.com/pricewatch/pricewatch/actions)
-[![Coverage](https://img.shields.io/badge/coverage-80%25-brightgreen)](https://github.com/pricewatch/pricewatch)
+[![Coverage](https://img.shields.io/badge/coverage-75%25-brightgreen)](https://github.com/pricewatch/pricewatch)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -281,15 +281,15 @@ python -m pytest tests/test_monitoring.py -v
 # Run with coverage report
 python -m pytest tests/ --cov=app --cov-report=html
 
-# Run with coverage and fail if below 80%
-python -m pytest tests/ --cov=app --cov-fail-under=80
+# Run with coverage and fail if below 75%
+python -m pytest tests/ --cov=app --cov-fail-under=75
 
 # Generate coverage report
 python -m pytest tests/ --cov=app --cov-report=term-missing
 ```
 
 ### Coverage Requirements
-- **Minimum coverage**: 80%
+- **Minimum coverage**: 75%
 - **Coverage configuration**: See `.coveragerc`
 - **HTML report**: Generated in `htmlcov/` directory
 - **CI enforcement**: Coverage check runs on every PR

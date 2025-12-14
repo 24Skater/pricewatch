@@ -116,20 +116,26 @@ class TestTrackerService:
         assert updated is not None
         assert updated.profile_id == sample_profile.id
     
-    def test_update_tracker_invalid_phone(self, db_session, sample_tracker):
-        """Test updating tracker with invalid phone number."""
+    def test_update_tracker_removes_profile(self, db_session, sample_tracker, sample_profile):
+        """Test updating tracker to remove profile."""
+        # First set a profile
+        sample_tracker.profile_id = sample_profile.id
+        db_session.commit()
+        
         service = TrackerService(db_session)
         
+        # Update without profile_id (should remove profile)
         updated_data = TrackerCreate(
             url="https://example.com/updated",
-            alert_method="sms",
-            contact="123",  # Invalid phone (too short)
-            name="Updated Tracker"
+            alert_method="email",
+            contact="test@example.com",
+            profile_id=None
         )
         
-        # Should raise ValidationError from service layer
-        with pytest.raises((ValidationError, DatabaseError)):
-            service.update_tracker(sample_tracker.id, updated_data)
+        updated = service.update_tracker(sample_tracker.id, updated_data)
+        
+        assert updated is not None
+        assert updated.profile is None
     
     def test_update_tracker_not_found(self, db_session):
         """Test updating non-existent tracker."""
