@@ -342,7 +342,7 @@ docker run -p 8000:8000 --env-file .env pricewatch
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+We welcome contributions! Please see our [Contributing Guide](docs/CONTRIBUTING.md) for details.
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -354,7 +354,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 8. Push to the branch (`git push origin feature/amazing-feature`)
 9. Open a Pull Request
 
-Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
+Please read our [Code of Conduct](docs/CODE_OF_CONDUCT.md) before contributing.
 
 ## 🛠️ Built With
 
@@ -388,8 +388,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - **Permission Errors**: Check file permissions
 
 ### Getting Help
-- Check the [IMPROVEMENTS.md](IMPROVEMENTS.md) file
-- Review the [CHANGELOG.md](CHANGELOG.md)
+- Check the [IMPROVEMENT_PLAN.md](docs/IMPROVEMENT_PLAN.md) file
+- Review the [CHANGELOG.md](docs/CHANGELOG.md)
 - Run `python test_setup.py` for diagnostics
 
 ## 🙏 Acknowledgments

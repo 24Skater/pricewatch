@@ -341,7 +341,7 @@ If you encounter issues:
 2. **Verify configuration** - Ensure .env file is correct
 3. **Run tests** - Check if tests pass
 4. **Check health endpoints** - Verify application status
-5. **Review documentation** - Check IMPROVEMENTS.md and CHANGELOG.md
+5. **Review documentation** - Check IMPROVEMENT_PLAN.md and CHANGELOG.md
 
 ## 🎉 Congratulations!
 

@@ -733,7 +733,7 @@ When making changes to the application, please:
 
 For questions about changes or migration assistance:
 
-1. Check the [IMPROVEMENTS.md](IMPROVEMENTS.md) file for detailed information
+1. Check the [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) file for detailed information
 2. Review the [setup_improvements.py](setup_improvements.py) script
 3. Run the test suite to verify your installation
 4. Check the application logs for detailed error information

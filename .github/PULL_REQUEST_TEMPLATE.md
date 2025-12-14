@@ -85,7 +85,7 @@ pytest tests/ -v
 ### Documentation
 
 - [ ] I have updated the README.md if needed
-- [ ] I have updated the CHANGELOG.md for significant changes
+- [ ] I have updated the docs/CHANGELOG.md for significant changes
 - [ ] I have added/updated docstrings for new functions/classes
 - [ ] I have updated API documentation if applicable
 
