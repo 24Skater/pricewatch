@@ -774,7 +774,7 @@ def health():
     """Basic health check endpoint."""
     return {
         "status": "healthy",
-        "version": "2.0.0",
+        "version": "2.1.0",
         "environment": settings.environment
     }
 
