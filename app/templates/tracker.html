@@ -10,11 +10,13 @@
   <p><a class="btn" href="/tracker/{{ tracker.id }}/edit">Edit</a></p>
 
   <form method="post" action="/tracker/{{ tracker.id }}/refresh" style="margin-top:8px">
+    <input type="hidden" name="{{ csrf_field_name }}" value="{{ csrf_token(request) }}" />
     <button class="btn" type="submit">Poll now</button>
   </form>
 
   <form method="post" action="/tracker/{{ tracker.id }}/selector" style="margin-top:8px; display:flex; gap:8px;">
-    <input type="text" name="selector" placeholder=".product-price--final dollars" value="{{ tracker.selector or '' }}">
+    <input type="hidden" name="{{ csrf_field_name }}" value="{{ csrf_token(request) }}" />
+    <input type="text" name="selector" placeholder=".product-price--final dollars" value="{{ tracker.selector or '' }}" maxlength="1000">
     <button class="btn" type="submit">Save selector & Poll</button>
   </form>
 </section>

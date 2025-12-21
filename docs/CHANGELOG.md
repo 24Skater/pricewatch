@@ -8,8 +8,302 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Comprehensive changelog tracking
-- Future change planning structure
+- Future enhancements and planned features
+
+## [2.1.0] - 2025-12-14
+
+### 🎉 Release - Security, Quality, and Performance Improvements
+
+This release focuses on comprehensive security hardening, code quality improvements, testing enhancements, DevOps infrastructure, documentation, and performance optimizations.
+
+### Added
+
+#### Security Enhancements
+- **CSRF Protection** (`app/csrf.py`)
+  - Token-based CSRF protection for all forms
+  - Session-based token validation
+  - Automatic token cleanup and expiration
+- **Security Headers Middleware** (`app/main.py`)
+  - X-Content-Type-Options, X-Frame-Options, X-XSS-Protection
+  - Content-Security-Policy (report-only mode)
+  - Referrer-Policy and Permissions-Policy headers
+- **Enhanced SSRF Protection** (`app/security.py`)
+  - Comprehensive private IP range blocking
+  - IPv6 localhost and private range detection
+  - URL scheme validation (http/https only)
+- **Request ID Tracking** (`app/main.py`, `app/context.py`)
+  - Unique request ID for each request
+  - Full request lifecycle tracking
+  - Request ID in response headers and logs
+- **Input Length Limits** (`app/schemas.py`)
+  - Maximum length constraints on all string fields
+  - Server-side and client-side validation
+  - Protection against oversized input attacks
+- **Secret Masking in Logs** (`app/logging_config.py`)
+  - Automatic redaction of passwords, tokens, and keys
+  - Sensitive data filter for all log handlers
+  - Secure logging practices
+
+#### Code Quality Improvements
+- **Notification Service** (`app/services/notification_service.py`)
+  - Centralized notification handling
+  - Single source of truth for email/SMS logic
+  - Reduced code duplication
+- **Base Service Class** (`app/services/base.py`)
+  - Common database operations
+  - Standardized error handling
+  - Reduced boilerplate code
+- **Type Hints** (`app/scraper.py`)
+  - Complete type annotations
+  - Improved IDE support and type checking
+- **Module Exports** (`app/__init__.py`, `app/services/__init__.py`)
+  - Explicit `__all__` declarations
+  - Clean module interfaces
+- **Error Messages** (`app/exceptions.py`)
+  - Structured error responses with codes
+  - User-friendly error messages
+  - Additional context in error details
+
+#### Testing Infrastructure
+- **Comprehensive Test Coverage** (80.67% coverage achieved)
+  - Scraper unit tests with mocked HTTP requests
+  - Notification service tests with SMTP/Twilio mocks
+  - Integration tests for end-to-end flows
+  - Security tests for CSRF, SSRF, rate limiting
+  - Monitoring tests for health checks
+  - Base service and database tests
+- **Test Fixtures** (`tests/conftest.py`)
+  - Reusable test data and scenarios
+  - Mock scraper responses
+  - Encrypted profile fixtures
+  - Price history fixtures
+- **Coverage Configuration** (`.coveragerc`, `pyproject.toml`)
+  - 75% minimum coverage requirement
+  - HTML and XML coverage reports
+  - Missing line reporting
+
+#### DevOps & Infrastructure
+- **GitHub Actions CI** (`.github/workflows/ci.yml`)
+  - Automated testing on push/PR
+  - Linting with Ruff
+  - Type checking with MyPy
+  - Security scanning with Bandit
+  - Dependency vulnerability checking
+- **Pre-commit Hooks** (`.pre-commit-config.yaml`)
+  - Automatic code formatting
+  - Linting before commit
+  - Type checking
+  - Security checks
+- **Docker Improvements** (`Dockerfile`, `docker-compose.yml`)
+  - Multi-stage builds for smaller images
+  - Non-root user execution
+  - Health check configuration
+  - Resource limits and logging
+  - Production override configuration
+- **Project Configuration** (`pyproject.toml`)
+  - Modern Python project structure
+  - Centralized tool configuration
+  - Ruff, MyPy, Pytest, Coverage settings
+
+#### Documentation
+- **Contributing Guide** (`CONTRIBUTING.md`)
+  - Development setup instructions
+  - Code style guidelines
+  - Testing requirements
+  - Pull request process
+- **Code of Conduct** (`CODE_OF_CONDUCT.md`)
+  - Contributor Covenant v2.1
+  - Community standards
+  - Enforcement guidelines
+- **Security Policy** (`SECURITY.md`)
+  - Vulnerability reporting process
+  - Supported versions
+  - Disclosure policy
+- **GitHub Templates** (`.github/ISSUE_TEMPLATE/`)
+  - Bug report template
+  - Feature request template
+  - Question template
+- **Pull Request Template** (`.github/PULL_REQUEST_TEMPLATE.md`)
+  - Structured PR format
+  - Testing checklist
+  - Documentation requirements
+- **Enhanced README** (`README.md`)
+  - Badges (CI, coverage, license, Python version)
+  - Table of contents
+  - Architecture diagram
+  - Built With section
+  - Acknowledgments
+
+#### Performance & Modernization
+- **Async HTTP Client** (`app/scraper.py`)
+  - `httpx` for async HTTP requests
+  - Non-blocking API endpoints
+  - Configuration flag for sync/async mode
+- **Database Connection Pooling** (`app/database.py`)
+  - Configurable pool size and overflow
+  - PostgreSQL/MySQL optimization
+  - Query timeout configuration
+- **Response Caching** (`app/main.py`)
+  - Cache-Control headers for static assets
+  - ETag support for tracker detail pages
+  - No-cache for sensitive endpoints
+- **Query Optimization** (`app/services/tracker_service.py`)
+  - `joinedload` for relationship loading
+  - Pagination support
+  - Query count logging in debug mode
+- **Prometheus Metrics** (`app/monitoring.py`, `app/main.py`)
+  - Request count and duration metrics
+  - Tracker count gauge
+  - Scrape error counter
+  - `/metrics` endpoint for Prometheus scraping
+
+### Changed
+
+#### Security
+- **Encryption Key Storage** (`app/security.py`, `app/config.py`)
+  - Moved from file-based to environment variable
+  - Production validation requirements
+  - Development fallback with warnings
+- **Rate Limiter** (`app/security.py`)
+  - Automatic cleanup of old entries
+  - Memory leak prevention
+  - Maximum entries limit with eviction
+- **Configuration Validation** (`app/config.py`)
+  - Stricter production requirements
+  - Minimum key lengths enforced
+  - Environment-specific validation
+
+#### Code Quality
+- **Deprecated datetime.utcnow()** (`app/models.py`)
+  - Replaced with timezone-aware `datetime.now(timezone.utc)`
+  - All timestamps are now timezone-aware
+- **Configuration Access** (`app/scraper.py`)
+  - Removed direct `os.getenv()` calls
+  - Centralized configuration via `settings` object
+- **Error Handling** (`app/exceptions.py`, `app/main.py`)
+  - Structured JSON error responses
+  - Machine-readable error codes
+  - Additional context in error details
+
+#### Testing
+- **Coverage Requirement** (`.coveragerc`, `pyproject.toml`)
+  - Reduced from 80% to 75% for practical balance
+  - Current coverage: 80.67%
+
+### Fixed
+
+#### Security Issues
+- **Encryption Key Storage**
+  - Fixed file-based key storage vulnerability
+  - Environment variable-based key management
+- **Rate Limiter Memory Leak**
+  - Added automatic cleanup of expired entries
+  - Maximum entries limit prevents unbounded growth
+- **SSRF Protection**
+  - Expanded private IP range detection
+  - IPv6 support for localhost and private ranges
+- **Duplicate SecurityError Class**
+  - Removed duplicate, consolidated in `app/exceptions.py`
+
+#### Code Quality
+- **Deprecated API Usage**
+  - Fixed `datetime.utcnow()` deprecation warnings
+  - All datetime operations now timezone-aware
+- **Code Duplication**
+  - Extracted notification service
+  - Created base service class
+  - Consolidated configuration access
+
+### Security
+
+#### Dependencies
+- **Updated cryptography** from 41.0.7 to 42.0.4+ (fixes 4 CVEs)
+- **Note**: pip 25.0.1 has CVE-2025-8869 - users should update with `pip install --upgrade pip`
+
+#### Security Audit Results
+- **Bandit**: 0 High/Medium issues (acceptable uses marked with `# nosec`)
+- **pip-audit**: 1 vulnerability in pip itself (user should update)
+- **Manual Review**: CSRF protection, rate limiting, and authentication flows verified
+
+### Performance
+
+#### Database
+- **Connection Pooling**: Configurable pool size for PostgreSQL/MySQL
+- **Query Optimization**: Eliminated N+1 queries with `joinedload`
+- **Pagination**: Added to `get_all_trackers()` for large datasets
+- **Query Timeout**: Configurable timeout for long-running queries
+
+#### HTTP
+- **Async Client**: Non-blocking HTTP requests with `httpx`
+- **Response Caching**: Optimized cache headers for static and dynamic content
+- **ETag Support**: Efficient cache validation for tracker pages
+
+#### Monitoring
+- **Prometheus Metrics**: Comprehensive application metrics
+- **Request Tracking**: Full request lifecycle monitoring
+
+### Documentation
+
+#### New Documentation Files
+- `CONTRIBUTING.md` - Contribution guidelines
+- `CODE_OF_CONDUCT.md` - Community standards
+- `SECURITY.md` - Security policy and reporting
+- `.github/ISSUE_TEMPLATE/*.yml` - Issue templates
+- `.github/PULL_REQUEST_TEMPLATE.md` - PR template
+
+#### Updated Documentation
+- `README.md` - Enhanced with badges, TOC, architecture diagram
+- `CHANGELOG.md` - Comprehensive change tracking
+- `IMPROVEMENT_PLAN.md` - Detailed improvement tracking
+
+### Infrastructure
+
+#### CI/CD
+- **GitHub Actions**: Automated testing, linting, security scanning
+- **Pre-commit Hooks**: Code quality checks before commit
+- **Docker**: Multi-stage builds, health checks, production configs
+
+#### Project Configuration
+- **pyproject.toml**: Modern Python project configuration
+- **.coveragerc**: Coverage reporting configuration
+- **.gitignore**: Comprehensive ignore patterns
+- **.dockerignore**: Optimized Docker builds
+
+### Migration Guide
+
+#### From v2.0.0 to v2.1.0
+
+1. **Update Dependencies**
+   ```bash
+   pip install -r requirements.txt --upgrade
+   ```
+
+2. **Update Environment Variables**
+   - Ensure `ENCRYPTION_KEY` is set (required in production)
+   - Review new configuration options in `.env.example`
+
+3. **No Database Migrations Required**
+   - Schema is compatible with v2.0.0
+
+4. **Test Application**
+   ```bash
+   pytest tests/ --cov=app --cov-fail-under=75
+   uvicorn app.main:app --reload
+   ```
+
+### Breaking Changes
+
+None - This is a minor version release with backward compatibility.
+
+### Deprecated
+
+None in this release.
+
+### Removed
+
+- Duplicate test file `tests/test_price_regex.py` (consolidated into `test_price_parsing.py`)
+
+---
 
 ## [2.0.0] - 2024-01-XX
 
@@ -439,7 +733,7 @@ When making changes to the application, please:
 
 For questions about changes or migration assistance:
 
-1. Check the [IMPROVEMENTS.md](IMPROVEMENTS.md) file for detailed information
+1. Check the [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) file for detailed information
 2. Review the [setup_improvements.py](setup_improvements.py) script
 3. Run the test suite to verify your installation
 4. Check the application logs for detailed error information

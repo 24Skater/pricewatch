@@ -1,0 +1,113 @@
+# =============================================================================
+# Pre-commit Configuration
+# =============================================================================
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+# =============================================================================
+
+repos:
+  # ---------------------------------------------------------------------------
+  # Ruff - Fast Python linter and formatter
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.9
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  # ---------------------------------------------------------------------------
+  # Pre-commit hooks - General file checks
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      # Whitespace and file formatting
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      
+      # File content checks
+      - id: check-yaml
+        args: [--unsafe]
+      - id: check-json
+      - id: check-toml
+      - id: check-xml
+      
+      # Security checks
+      - id: detect-private-key
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      
+      # Python specific
+      - id: check-ast
+      - id: debug-statements
+      - id: check-docstring-first
+
+  # ---------------------------------------------------------------------------
+  # MyPy - Static type checking
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - pydantic
+          - sqlalchemy
+          - fastapi
+          - types-requests
+        args: [--ignore-missing-imports]
+        files: ^app/
+
+  # ---------------------------------------------------------------------------
+  # Bandit - Security linting
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.6
+    hooks:
+      - id: bandit
+        args: [-ll, -ii, -r]
+        files: ^app/
+
+  # ---------------------------------------------------------------------------
+  # Codespell - Spell checking
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.2.6
+    hooks:
+      - id: codespell
+        args: [--skip, "*.json,*.lock,*.min.js,*.min.css"]
+        exclude: ^tests/
+
+# =============================================================================
+# Configuration
+# =============================================================================
+default_language_version:
+  python: python3.12
+
+# Exclude patterns
+exclude: |
+  (?x)^(
+    \.git/|
+    \.venv/|
+    venv/|
+    __pycache__/|
+    \.pytest_cache/|
+    htmlcov/|
+    \.mypy_cache/|
+    migrations/versions/
+  )$
+
+# CI configuration
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit hooks
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false
+

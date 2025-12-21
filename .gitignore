@@ -188,3 +188,37 @@ pyvenv.cfg
 pip-selfcheck.json
 
 # End of https://www.toptal.com/developers/gitignore/api/venv,dotenv,python
+
+### Pricewatch Specific ###
+# Environment files
+.env.local
+.env.*.local
+
+# Secrets
+encryption.key
+*.pem
+*.key
+!requirements*.txt
+
+# Database
+*.db
+*.sqlite3
+pricewatch.db
+
+# Logs
+logs/
+app.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage reports
+coverage.json

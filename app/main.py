@@ -1,18 +1,24 @@
 import os
 import time
+import uuid
+import hashlib
 from typing import Optional
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Depends, Request, Form, HTTPException, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from prometheus_client import CONTENT_TYPE_LATEST
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
+from starlette.middleware.base import BaseHTTPMiddleware
 from urllib.parse import quote_plus
 from sqlalchemy.orm import Session
+
+from .context import set_request_id, get_request_id
 
 from .database import Base, engine, get_db, SessionLocal
 from .models import Tracker, PriceHistory, NotificationProfile
@@ -21,11 +27,15 @@ from .scheduler import start_scheduler
 from .services.tracker_service import TrackerService
 from .services.profile_service import ProfileService
 from .services.scheduler_service import SchedulerService
-from .exceptions import ValidationError, SecurityError, ScrapingError, DatabaseError
+from .exceptions import (
+    PricewatchException, ValidationError, SecurityError, 
+    ScrapingError, DatabaseError, RateLimitError
+)
 from .logging_config import get_logger, setup_logging
 from .config import settings
 from .security import rate_limiter
-from .monitoring import health_checker
+from .monitoring import health_checker, get_prometheus_metrics, pricewatch_requests_total, pricewatch_request_duration_seconds
+from .csrf import get_csrf_token, validate_csrf_token, is_csrf_exempt, CSRF_FORM_FIELD
 
 # Setup logging
 setup_logging()
@@ -45,7 +55,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Pricewatch",
     description="A price tracking application with notifications",
-    version="2.0.0",
+    version="2.1.0",
     lifespan=lifespan
 )
 
@@ -63,9 +73,226 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Request ID Middleware
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    """Middleware to add unique request ID to each request.
+    
+    - Generates UUID for each request
+    - Stores in context variable for access throughout request lifecycle
+    - Adds X-Request-ID header to response
+    """
+    
+    async def dispatch(self, request: Request, call_next):
+        # Generate unique request ID
+        req_id = str(uuid.uuid4())
+        
+        # Store in shared context (accessible in logging)
+        set_request_id(req_id)
+        
+        # Store in request state for template access
+        request.state.request_id = req_id
+        
+        # Process request
+        response = await call_next(request)
+        
+        # Add request ID to response header
+        response.headers["X-Request-ID"] = req_id
+        
+        return response
+
+app.add_middleware(RequestIDMiddleware)
+
+
+# Security Headers Middleware
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Middleware to add security headers to all responses."""
+    
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        
+        # Prevent MIME type sniffing
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        
+        # Prevent clickjacking
+        response.headers["X-Frame-Options"] = "DENY"
+        
+        # Enable XSS filter in browsers
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        
+        # Control referrer information
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        
+        # Restrict browser features
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+        
+        # Content Security Policy (report-only mode for initial rollout)
+        csp = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: https:; "
+            "font-src 'self'; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self'"
+        )
+        response.headers["Content-Security-Policy-Report-Only"] = csp
+        
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+
+# Caching Headers Middleware
+class CachingHeadersMiddleware(BaseHTTPMiddleware):
+    """Middleware to add appropriate caching headers to responses.
+    
+    - Static assets: Cache-Control with long max-age
+    - Tracker detail pages: ETag support
+    - Sensitive endpoints: no-cache
+    """
+    
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        
+        path = request.url.path
+        
+        # Sensitive endpoints - no caching
+        if any(path.startswith(prefix) for prefix in ["/admin", "/health", "/metrics", "/api"]):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        # Static files - long cache
+        elif path.startswith("/static"):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        # Tracker detail pages - short cache with ETag support
+        elif path.startswith("/tracker/") and request.method == "GET":
+            # Allow short cache but enable revalidation
+            response.headers["Cache-Control"] = "private, max-age=60, must-revalidate"
+        # Other pages - short cache
+        else:
+            response.headers["Cache-Control"] = "private, max-age=300"
+        
+        return response
+
+app.add_middleware(CachingHeadersMiddleware)
+
+
+# Prometheus Metrics Middleware
+class PrometheusMetricsMiddleware(BaseHTTPMiddleware):
+    """Middleware to collect Prometheus metrics for HTTP requests."""
+    
+    async def dispatch(self, request: Request, call_next):
+        # Skip metrics endpoint to avoid recursion
+        if request.url.path == "/metrics":
+            return await call_next(request)
+        
+        # Record start time
+        start_time = time.time()
+        
+        # Process request
+        response = await call_next(request)
+        
+        # Calculate duration
+        duration = time.time() - start_time
+        
+        # Extract endpoint (simplified path)
+        endpoint = request.url.path
+        # Normalize endpoint (remove IDs for better aggregation)
+        if "/tracker/" in endpoint and request.method == "GET":
+            endpoint = "/tracker/{id}"
+        elif "/admin/profiles/" in endpoint:
+            endpoint = "/admin/profiles/{id}"
+        
+        # Record metrics
+        pricewatch_requests_total.labels(
+            method=request.method,
+            endpoint=endpoint,
+            status=response.status_code
+        ).inc()
+        
+        pricewatch_request_duration_seconds.labels(
+            method=request.method,
+            endpoint=endpoint
+        ).observe(duration)
+        
+        return response
+
+app.add_middleware(PrometheusMetricsMiddleware)
+
+
+# Exception handlers for consistent JSON error responses
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(PricewatchException)
+async def pricewatch_exception_handler(request: Request, exc: PricewatchException):
+    """Handle all Pricewatch custom exceptions with structured JSON response."""
+    status_codes = {
+        "VALIDATION_ERROR": 400,
+        "SECURITY_ERROR": 403,
+        "SCRAPING_ERROR": 502,
+        "DATABASE_ERROR": 500,
+        "RATE_LIMIT_ERROR": 429,
+        "NOTIFICATION_ERROR": 500,
+        "CONFIGURATION_ERROR": 500,
+    }
+    status_code = status_codes.get(exc.code, 500)
+    
+    logger.warning(
+        f"{exc.code}: {exc.message}",
+        extra={"details": exc.details, "path": str(request.url.path)}
+    )
+    
+    return JSONResponse(
+        status_code=status_code,
+        content=exc.to_dict()
+    )
+
+
+@app.exception_handler(RateLimitError)
+async def rate_limit_exception_handler(request: Request, exc: RateLimitError):
+    """Handle rate limit exceptions with 429 status."""
+    logger.warning(f"Rate limit exceeded for {request.client.host}")
+    return JSONResponse(
+        status_code=429,
+        content=exc.to_dict(),
+        headers={"Retry-After": "60"}
+    )
+
+
+# CSRF validation dependency for POST endpoints
+async def verify_csrf(
+    request: Request,
+    csrf_token: str = Form(None, alias="csrf_token")
+) -> None:
+    """Dependency to verify CSRF token in form submissions."""
+    from .csrf import csrf_manager
+    
+    # Skip CSRF for exempt paths
+    if is_csrf_exempt(request.url.path):
+        return
+    
+    # Also check header for AJAX requests
+    token = csrf_token or request.headers.get("X-CSRF-Token")
+    
+    if not csrf_manager.validate_token(token, request):
+        logger.warning(
+            f"CSRF validation failed for {request.method} {request.url.path} "
+            f"from {request.client.host}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="CSRF validation failed. Please refresh the page and try again."
+        )
+
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
+
+# Add CSRF token function to Jinja2 templates
+templates.env.globals["csrf_token"] = get_csrf_token
+templates.env.globals["csrf_field_name"] = CSRF_FORM_FIELD
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request, db: Session = Depends(get_db)):
@@ -74,7 +301,7 @@ def index(request: Request, db: Session = Depends(get_db)):
         tracker_service = TrackerService(db)
         profile_service = ProfileService(db)
         
-        trackers = tracker_service.get_all_trackers()
+        trackers, _ = tracker_service.get_all_trackers()
         profiles = profile_service.get_all_profiles()
         
         return templates.TemplateResponse(
@@ -86,7 +313,7 @@ def index(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/trackers", response_class=HTMLResponse)
-def create_tracker(
+async def create_tracker(
     request: Request,
     url: str = Form(...),
     alert_method: str = Form(...),
@@ -94,7 +321,9 @@ def create_tracker(
     selector: str = Form(""),
     name: str = Form(""),
     profile_id: int = Form(0),
+    csrf_token: str = Form(None),
     db: Session = Depends(get_db),
+    _csrf: None = Depends(verify_csrf),
 ):
     """Create a new tracker."""
     try:
@@ -144,10 +373,24 @@ def tracker_detail(tracker_id: int, request: Request, db: Session = Depends(get_
             PriceHistory.tracker_id == tracker_id
         ).order_by(PriceHistory.checked_at.desc()).all()
         
-        return templates.TemplateResponse(
+        # Generate ETag based on tracker and latest price check
+        etag_data = f"{tracker_id}-{tracker.created_at.isoformat() if tracker.created_at else ''}"
+        if history:
+            etag_data += f"-{history[0].checked_at.isoformat()}"
+        # MD5 is acceptable for ETag generation (not security-sensitive)
+        etag = hashlib.md5(etag_data.encode()).hexdigest()  # nosec B324
+        
+        # Check if client has matching ETag
+        if_none_match = request.headers.get("If-None-Match")
+        if if_none_match == etag:
+            return Response(status_code=304)  # Not Modified
+        
+        response = templates.TemplateResponse(
             "tracker.html", 
             {"request": request, "tracker": tracker, "history": history}
         )
+        response.headers["ETag"] = etag
+        return response
     except HTTPException:
         raise
     except Exception as e:
@@ -156,7 +399,13 @@ def tracker_detail(tracker_id: int, request: Request, db: Session = Depends(get_
 
 @app.get("/tracker/{tracker_id}/refresh", response_class=HTMLResponse)
 @app.post("/tracker/{tracker_id}/refresh", response_class=HTMLResponse)
-def tracker_refresh(tracker_id: int, db: Session = Depends(get_db)):
+async def tracker_refresh(
+    request: Request,
+    tracker_id: int,
+    csrf_token: str = Form(None),
+    db: Session = Depends(get_db),
+    _csrf: None = Depends(verify_csrf),
+):
     """Refresh tracker price."""
     try:
         tracker_service = TrackerService(db)
@@ -191,7 +440,14 @@ def tracker_refresh(tracker_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/tracker/{tracker_id}/selector", response_class=HTMLResponse)
-def tracker_set_selector(tracker_id: int, selector: str = Form(""), db: Session = Depends(get_db)):
+async def tracker_set_selector(
+    request: Request,
+    tracker_id: int,
+    selector: str = Form(""),
+    csrf_token: str = Form(None),
+    db: Session = Depends(get_db),
+    _csrf: None = Depends(verify_csrf),
+):
     """Update tracker selector."""
     try:
         tracker_service = TrackerService(db)
@@ -237,7 +493,7 @@ def tracker_edit(tracker_id: int, request: Request, db: Session = Depends(get_db
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/tracker/{tracker_id}/edit", response_class=HTMLResponse)
-def tracker_update(
+async def tracker_update(
     tracker_id: int,
     request: Request,
     url: str = Form(...),
@@ -248,7 +504,9 @@ def tracker_update(
     profile_id: int = Form(0),
     is_active: bool = Form(False),
     poll_now: int = Form(0),
+    csrf_token: str = Form(None),
     db: Session = Depends(get_db),
+    _csrf: None = Depends(verify_csrf),
 ):
     """Update tracker."""
     try:
@@ -303,7 +561,13 @@ def tracker_update(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/tracker/{tracker_id}/delete", response_class=HTMLResponse)
-def tracker_delete(tracker_id: int, db: Session = Depends(get_db)):
+async def tracker_delete(
+    request: Request,
+    tracker_id: int,
+    csrf_token: str = Form(None),
+    db: Session = Depends(get_db),
+    _csrf: None = Depends(verify_csrf),
+):
     """Delete tracker."""
     try:
         tracker_service = TrackerService(db)
@@ -345,7 +609,7 @@ def profiles_new(request: Request):
     )
 
 @app.post("/admin/profiles/new", response_class=HTMLResponse)
-def profiles_create(
+async def profiles_create(
     request: Request,
     name: str = Form(...),
     email_from: str = Form(""),
@@ -356,7 +620,9 @@ def profiles_create(
     twilio_account_sid: str = Form(""),
     twilio_auth_token: str = Form(""),
     twilio_from_number: str = Form(""),
+    csrf_token: str = Form(None),
     db: Session = Depends(get_db),
+    _csrf: None = Depends(verify_csrf),
 ):
     """Create new notification profile."""
     try:
@@ -413,7 +679,7 @@ def profiles_edit(profile_id: int, request: Request, db: Session = Depends(get_d
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/admin/profiles/{profile_id}/edit", response_class=HTMLResponse)
-def profiles_update(
+async def profiles_update(
     profile_id: int,
     request: Request,
     name: str = Form(...),
@@ -425,7 +691,9 @@ def profiles_update(
     twilio_account_sid: str = Form(""),
     twilio_auth_token: str = Form(""),
     twilio_from_number: str = Form(""),
+    csrf_token: str = Form(None),
     db: Session = Depends(get_db),
+    _csrf: None = Depends(verify_csrf),
 ):
     """Update notification profile."""
     try:
@@ -467,7 +735,13 @@ def profiles_update(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/admin/profiles/{profile_id}/delete", response_class=HTMLResponse)
-def profiles_delete(profile_id: int, db: Session = Depends(get_db)):
+async def profiles_delete(
+    request: Request,
+    profile_id: int,
+    csrf_token: str = Form(None),
+    db: Session = Depends(get_db),
+    _csrf: None = Depends(verify_csrf),
+):
     """Delete notification profile."""
     try:
         profile_service = ProfileService(db)
@@ -490,7 +764,7 @@ def api_list_trackers(db: Session = Depends(get_db)):
     """API endpoint to list all trackers."""
     try:
         tracker_service = TrackerService(db)
-        trackers = tracker_service.get_all_trackers()
+        trackers, _ = tracker_service.get_all_trackers()
         return [TrackerOut.model_validate(tracker) for tracker in trackers]
     except Exception as e:
         logger.error(f"Failed to list trackers via API: {e}")
@@ -501,7 +775,7 @@ def health():
     """Basic health check endpoint."""
     return {
         "status": "healthy",
-        "version": "2.0.0",
+        "version": "2.1.0",
         "environment": settings.environment
     }
 
@@ -521,14 +795,22 @@ def detailed_health():
 
 @app.get("/metrics")
 def metrics():
-    """Application metrics endpoint."""
+    """Prometheus metrics endpoint."""
     try:
-        health_data = health_checker.comprehensive_health_check()
-        return {
-            "application": health_data["checks"]["application"],
-            "system": health_data["checks"]["system_resources"],
-            "uptime": health_data["checks"]["uptime"]
-        }
+        if settings.enable_metrics:
+            metrics_data = get_prometheus_metrics()
+            return Response(
+                content=metrics_data,
+                media_type=CONTENT_TYPE_LATEST
+            )
+        else:
+            # Fallback to JSON metrics if Prometheus is disabled
+            health_data = health_checker.comprehensive_health_check()
+            return {
+                "application": health_data["checks"]["application"],
+                "system": health_data["checks"]["system_resources"],
+                "uptime": health_data["checks"]["uptime"]
+            }
     except Exception as e:
         logger.error(f"Metrics collection failed: {e}")
         return {"error": str(e)}

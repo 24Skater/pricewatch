@@ -1,23 +1,26 @@
 """Tracker business logic service."""
 
 from typing import Optional, List, Tuple
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 from app.models import Tracker, PriceHistory, NotificationProfile
 from app.schemas import TrackerCreate, TrackerOut
 from app.scraper import get_price
-from app.alerts import send_email, send_sms
+from app.services.base import BaseService
+from app.services.notification_service import notification_service
 from app.exceptions import ValidationError, ScrapingError, DatabaseError
-from app.logging_config import get_logger
 from app.security import input_validator
+from app.config import settings
+from app.logging_config import get_logger
+from app.monitoring import pricewatch_scrape_errors_total
+from urllib.parse import urlparse
 
-logger = get_logger(__name__)
 
-
-class TrackerService:
+class TrackerService(BaseService[Tracker]):
     """Service for tracker business logic."""
     
     def __init__(self, db: Session):
-        self.db = db
+        super().__init__(db)
     
     def create_tracker(self, tracker_data: TrackerCreate) -> Tracker:
         """Create a new tracker."""
@@ -59,7 +62,7 @@ class TrackerService:
                 if title and not tracker.name:
                     tracker.name = title[:200]
             except Exception as e:
-                logger.warning(f"Initial price fetch failed for {tracker.url}: {e}")
+                self.logger.warning(f"Initial price fetch failed for {tracker.url}: {e}")
             
             self.db.add(tracker)
             self.db.commit()
@@ -75,21 +78,72 @@ class TrackerService:
                 self.db.add(price_history)
                 self.db.commit()
             
-            logger.info(f"Created tracker {tracker.id} for {tracker.url}")
+            self.logger.info(f"Created tracker {tracker.id} for {tracker.url}")
             return tracker
             
         except Exception as e:
-            self.db.rollback()
-            logger.error(f"Failed to create tracker: {e}")
+            self._rollback()
+            self.logger.error(f"Failed to create tracker: {e}")
             raise DatabaseError(f"Failed to create tracker: {e}")
     
     def get_tracker(self, tracker_id: int) -> Optional[Tracker]:
-        """Get a tracker by ID."""
-        return self.db.query(Tracker).filter(Tracker.id == tracker_id).first()
+        """Get a tracker by ID with profile relationship loaded."""
+        query = self.db.query(Tracker).options(
+            joinedload(Tracker.profile)
+        ).filter(Tracker.id == tracker_id)
+        
+        # Apply query timeout if configured
+        if settings.db_query_timeout and not ("sqlite" in settings.database_url):
+            query = query.execution_options(timeout=settings.db_query_timeout)
+        
+        tracker = query.first()
+        
+        # Log query count in debug mode
+        if settings.debug:
+            query_count = len(self.db.identity_map)
+            get_logger(__name__).debug(f"Query returned {query_count} objects in identity map")
+        
+        return tracker
     
-    def get_all_trackers(self) -> List[Tracker]:
-        """Get all trackers."""
-        return self.db.query(Tracker).order_by(Tracker.created_at.desc()).all()
+    def get_all_trackers(self, page: int = 1, per_page: int = 100) -> Tuple[List[Tracker], int]:
+        """Get all trackers with pagination and profile relationship loaded.
+        
+        Args:
+            page: Page number (1-indexed)
+            per_page: Number of items per page
+            
+        Returns:
+            Tuple of (trackers list, total count)
+        """
+        # Count total trackers
+        total_query = self.db.query(func.count(Tracker.id))
+        if settings.db_query_timeout and not ("sqlite" in settings.database_url):
+            total_query = total_query.execution_options(timeout=settings.db_query_timeout)
+        total = total_query.scalar()
+        
+        # Get paginated trackers with profile relationship
+        query = self.db.query(Tracker).options(
+            joinedload(Tracker.profile)
+        ).order_by(Tracker.created_at.desc())
+        
+        # Apply query timeout if configured
+        if settings.db_query_timeout and not ("sqlite" in settings.database_url):
+            query = query.execution_options(timeout=settings.db_query_timeout)
+        
+        # Apply pagination
+        offset = (page - 1) * per_page
+        trackers = query.offset(offset).limit(per_page).all()
+        
+        # Log query count in debug mode
+        if settings.debug:
+            query_count = len(self.db.identity_map)
+            get_logger(__name__).debug(
+                f"get_all_trackers: page={page}, per_page={per_page}, "
+                f"total={total}, returned={len(trackers)}, "
+                f"identity_map_size={query_count}"
+            )
+        
+        return trackers, total
     
     def update_tracker(self, tracker_id: int, tracker_data: TrackerCreate) -> Optional[Tracker]:
         """Update a tracker."""
@@ -131,12 +185,12 @@ class TrackerService:
             self.db.commit()
             self.db.refresh(tracker)
             
-            logger.info(f"Updated tracker {tracker.id}")
+            self.logger.info(f"Updated tracker {tracker.id}")
             return tracker
             
         except Exception as e:
-            self.db.rollback()
-            logger.error(f"Failed to update tracker {tracker_id}: {e}")
+            self._rollback()
+            self.logger.error(f"Failed to update tracker {tracker_id}: {e}")
             raise DatabaseError(f"Failed to update tracker: {e}")
     
     def delete_tracker(self, tracker_id: int) -> bool:
@@ -155,12 +209,12 @@ class TrackerService:
             self.db.delete(tracker)
             self.db.commit()
             
-            logger.info(f"Deleted tracker {tracker_id}")
+            self.logger.info(f"Deleted tracker {tracker_id}")
             return True
             
         except Exception as e:
-            self.db.rollback()
-            logger.error(f"Failed to delete tracker {tracker_id}: {e}")
+            self._rollback()
+            self.logger.error(f"Failed to delete tracker {tracker_id}: {e}")
             raise DatabaseError(f"Failed to delete tracker: {e}")
     
     def refresh_tracker_price(self, tracker_id: int) -> Tuple[Optional[float], Optional[str]]:
@@ -198,34 +252,19 @@ class TrackerService:
                 
                 # Send notification if price changed significantly
                 if delta is not None and abs(delta) > 1e-6:
-                    self._send_price_notification(tracker, price, delta)
+                    notification_service.send_price_alert(tracker, price, delta)
                 
-                logger.info(f"Updated price for tracker {tracker_id}: ${price}")
+                self.logger.info(f"Updated price for tracker {tracker_id}: ${price}")
             
             return price, currency
             
         except Exception as e:
-            logger.error(f"Failed to refresh price for tracker {tracker_id}: {e}")
+            self.logger.error(f"Failed to refresh price for tracker {tracker_id}: {e}")
+            # Record scrape error metric
+            try:
+                domain = urlparse(tracker.url).netloc or "unknown"
+                pricewatch_scrape_errors_total.labels(url_domain=domain).inc()
+            except Exception:
+                pass  # Don't fail on metric recording
             raise ScrapingError(f"Failed to refresh price: {e}")
     
-    def _send_price_notification(self, tracker: Tracker, price: float, delta: float) -> None:
-        """Send price change notification."""
-        try:
-            sign = "decreased" if delta < 0 else "increased"
-            subject = f"Price {sign}: {tracker.name or tracker.url}"
-            body = (
-                f"The price has {sign} by ${abs(delta):.2f}\n"
-                f"Current price: ${price:.2f}\n"
-                f"URL: {tracker.url}\n"
-            )
-            
-            if tracker.alert_method == "email":
-                send_email(tracker.contact, subject, body, profile=tracker.profile)
-            else:
-                send_sms(tracker.contact, subject + "\n" + body, profile=tracker.profile)
-            
-            logger.info(f"Sent {tracker.alert_method} notification for tracker {tracker.id}")
-            
-        except Exception as e:
-            logger.error(f"Failed to send notification for tracker {tracker.id}: {e}")
-            # Don't raise exception for notification failures

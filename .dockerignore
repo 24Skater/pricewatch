@@ -1,0 +1,88 @@
+# =============================================================================
+# Docker Ignore File
+# =============================================================================
+# Files and directories to exclude from Docker build context
+# This speeds up builds and keeps the image clean
+# =============================================================================
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Environment files (should be passed at runtime)
+.env
+.env.*
+!.env.example
+
+# Documentation (keep README for reference)
+*.md
+!README.md
+docs/
+IMPROVEMENT_PLAN.md
+AGENT_PROMPT.md
+CHANGELOG.md
+
+# Testing
+tests/
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+coverage.json
+htmlcov/
+.tox/
+.nox/
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+eggs/
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Database files (should use volumes)
+*.db
+*.sqlite3
+pricewatch.db
+
+# Log files
+*.log
+logs/
+
+# Secrets (never include in image)
+encryption.key
+*.pem
+*.key
+
+# Misc
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+*.manifest
+*.spec
+.coveragerc
+pyproject.toml
+.pre-commit-config.yaml
+

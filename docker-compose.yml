@@ -1,5 +1,70 @@
+# =============================================================================
+# Pricewatch Docker Compose Configuration
+# =============================================================================
+# Development and staging configuration
+# For production, use docker-compose.prod.yml as an override
+# =============================================================================
+
 services:
   pricewatch:
-    build: .
-    ports: ["8000:8000"]
-    env_file: .env
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    
+    container_name: pricewatch-app
+    
+    ports:
+      - "8000:8000"
+    
+    env_file:
+      - .env
+    
+    environment:
+      - PYTHONUNBUFFERED=1
+    
+    volumes:
+      # Persist database
+      - pricewatch-data:/app/data
+      # Persist logs
+      - pricewatch-logs:/app/logs
+    
+    # Health check configuration
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# Named volumes for data persistence
+volumes:
+  pricewatch-data:
+    driver: local
+  pricewatch-logs:
+    driver: local
+
+# Network configuration
+networks:
+  default:
+    name: pricewatch-network
