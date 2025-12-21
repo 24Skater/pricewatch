@@ -5,9 +5,19 @@ from bs4 import BeautifulSoup
 from contextlib import suppress
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; PricewatchBot/1.0; +https://example.com/bot)"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "DNT": "1",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Cache-Control": "max-age=0"
 }
-USE_JS = os.getenv("USE_JS_FALLBACK") in {"1", "true", "True"}
+USE_JS = os.getenv("USE_JS_FALLBACK", "true") in {"1", "true", "True"}
 
 PRICE_REGEX = re.compile(r"""
     (?<![A-Za-z0-9])
@@ -17,18 +27,62 @@ PRICE_REGEX = re.compile(r"""
 """, re.VERBOSE)
 
 def fetch_html(url: str) -> str:
-    resp = requests.get(url, headers=HEADERS, timeout=30)
-    resp.raise_for_status()
-    return resp.text
+    import time
+    import random
+    
+    # Add a small random delay to avoid being detected as a bot
+    time.sleep(random.uniform(1, 3))
+    
+    # Try with session for better connection handling
+    session = requests.Session()
+    session.headers.update(HEADERS)
+    
+    try:
+        resp = session.get(url, timeout=30, allow_redirects=True)
+        resp.raise_for_status()
+        return resp.text
+    except requests.exceptions.RequestException as e:
+        # If regular request fails, try with different headers
+        fallback_headers = HEADERS.copy()
+        fallback_headers["User-Agent"] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        
+        session.headers.update(fallback_headers)
+        resp = session.get(url, timeout=30, allow_redirects=True)
+        resp.raise_for_status()
+        return resp.text
 
 def fetch_html_js(url: str) -> str:
     from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page(user_agent=HEADERS["User-Agent"])
-        page.goto(url, wait_until="domcontentloaded", timeout=30000)
+        browser = p.chromium.launch(
+            headless=True,
+            args=[
+                '--no-sandbox',
+                '--disable-blink-features=AutomationControlled',
+                '--disable-web-security',
+                '--disable-features=VizDisplayCompositor'
+            ]
+        )
+        context = browser.new_context(
+            user_agent=HEADERS["User-Agent"],
+            viewport={'width': 1920, 'height': 1080},
+            extra_http_headers=HEADERS
+        )
+        page = context.new_page()
+        
+        # Set additional headers to look more like a real browser
+        page.set_extra_http_headers({
+            'Accept': HEADERS['Accept'],
+            'Accept-Language': HEADERS['Accept-Language'],
+            'Accept-Encoding': HEADERS['Accept-Encoding'],
+        })
+        
+        page.goto(url, wait_until="networkidle", timeout=30000)
+        
+        # Wait a bit for any dynamic content to load
         with suppress(Exception):
-            page.wait_for_timeout(1500)
+            page.wait_for_timeout(2000)
+        
         html = page.content()
         browser.close()
     return html
@@ -83,6 +137,22 @@ HINT_SELECTORS = [
     "*[id*=price i]",
     "[data-test*=price i]",
     "[data-qa*=price i]",
+    # Sweetwater specific selectors
+    ".price-current",
+    ".product-price",
+    ".price",
+    "[class*='price']",
+    "[class*='cost']",
+    "[class*='amount']",
+    # Generic e-commerce selectors
+    ".price-value",
+    ".current-price",
+    ".sale-price",
+    ".final-price",
+    ".total-price",
+    ".amount",
+    ".cost",
+    ".value",
 ]
 NEG_WORDS = {"save", "saving", "was", "strike", "strikethrough", "coupon", "per month", "msrp", "list", "discount"}
 POS_NEAR = {"final", "current", "your price", "our price", "add to cart", "buy"}

@@ -154,6 +154,7 @@ def tracker_detail(tracker_id: int, request: Request, db: Session = Depends(get_
         logger.error(f"Failed to get tracker {tracker_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+@app.get("/tracker/{tracker_id}/refresh", response_class=HTMLResponse)
 @app.post("/tracker/{tracker_id}/refresh", response_class=HTMLResponse)
 def tracker_refresh(tracker_id: int, db: Session = Depends(get_db)):
     """Refresh tracker price."""
